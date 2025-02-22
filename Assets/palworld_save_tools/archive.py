@@ -250,7 +250,7 @@ class FArchiveReader:
         if path in self.type_hints:
             return self.type_hints[path]
         else:
-            #print(f"Struct type for {path} not found, assuming {default}")
+            print(f"Struct type for {path} not found, assuming {default}")
             return default
 
     def eof(self) -> bool:
@@ -402,6 +402,11 @@ class FArchiveReader:
                 "id": self.optional_guid(),
                 "value": self.i32(),
             }
+        elif type_name == "UInt16Property":
+            value = {
+                "id": self.optional_guid(),
+                "value": self.u16(),
+            }
         elif type_name == "UInt32Property":
             value = {
                 "id": self.optional_guid(),
@@ -448,6 +453,20 @@ class FArchiveReader:
                 "value": self.bool(),
                 "id": self.optional_guid(),
             }
+        elif type_name == "ByteProperty":
+            enum_type = self.fstring()
+            _id = self.optional_guid()
+            if enum_type == "None":
+                enum_value = self.byte()
+            else:
+                enum_value = self.fstring()
+            value = {
+                "id": _id,
+                "value": {
+                    "type": enum_type,
+                    "value": enum_value,
+                },
+            }
         elif type_name == "ArrayProperty":
             array_type = self.fstring()
             value = {
@@ -488,25 +507,6 @@ class FArchiveReader:
                 "value_struct_type": value_struct_type,
                 "id": _id,
                 "value": values,
-            }
-        elif type_name == "ByteProperty":
-            enum_type = self.fstring()
-            _id = self.optional_guid()
-            if enum_type == "None":
-                enum_value = self.byte()
-            else:
-                enum_value = self.fstring()
-            value = {
-                "id": _id,
-                "value": {
-                    "type": enum_type,
-                    "value": enum_value,
-                },
-            }
-        elif type_name == "UInt16Property":
-            value = {
-                "id": self.optional_guid(),
-                "value": self.u16(),
             }
         else:
             raise Exception(f"Unknown type: {type_name} ({path})")
@@ -716,12 +716,6 @@ def instance_id_writer(writer, d):
     uuid_writer(writer, d["guid"])
     uuid_writer(writer, d["instance_id"])
 
-currCount = [0]
-currCount[0] = 0
-totalCount = [0]
-totalCount[0] = 0
-lastProgressPercent = [0]
-lastProgressPercent[0] = "0"
 
 class FArchiveWriter:
     data: io.BytesIO
@@ -829,30 +823,11 @@ class FArchiveWriter:
         for i in range(len(array)):
             type_writer(self, array[i])
 
-    def set_properties_count(self, properties: dict[str, Any], propertyNumber):
-        totalCount[0] = propertyNumber
-
     def properties(self, properties: dict[str, Any]):
         for key in properties:
-            currCount[0] += 1
             self.fstring(key)
             self.property(properties[key])
-            # Calculate current progress percent
-            progress_percent = int(100 * currCount[0] / totalCount[0])
-            if progress_percent >= 100:
-                progress_percent = 100
-            # Update progress using self.update_progress()
-            if lastProgressPercent[0] != progress_percent:
-                lastProgressPercent[0] = progress_percent
-                self.update_progress(progress_percent)
         self.fstring("None")
-
-    def update_progress(self, progress_percent):
-        if progress_percent == 100:
-            sys.stdout.write(f"\rCompressing: {progress_percent}% completed\n")  # Add newline at 100%
-        else:
-            sys.stdout.write(f"\rCompressing: {progress_percent}% completed")
-        sys.stdout.flush()
 
     def property(self, property: dict[str, Any]):
         # write type_name
@@ -878,14 +853,6 @@ class FArchiveWriter:
                 )
         elif property_type == "StructProperty":
             size = self.struct(property)
-        elif property_type == "ByteProperty":
-            self.fstring(property["value"]["type"])
-            self.optional_guid(property.get("id", None))
-            if property["value"]["type"] == "None":
-                self.byte(property["value"]["value"])
-            else:
-                self.fstring(property["value"]["value"])
-            size = 1
         elif property_type == "IntProperty":
             self.optional_guid(property.get("id", None))
             self.i32(property["value"])
@@ -924,6 +891,14 @@ class FArchiveWriter:
             self.bool(property["value"])
             self.optional_guid(property.get("id", None))
             size = 0
+        elif property_type == "ByteProperty":
+            self.fstring(property["value"]["type"])
+            self.optional_guid(property.get("id", None))
+            if property["value"]["type"] == "None":
+                self.byte(property["value"]["value"])
+                size = 1
+            else:
+                size = self.fstring(property["value"]["value"])
         elif property_type == "ArrayProperty":
             self.fstring(property["array_type"])
             self.optional_guid(property.get("id", None))

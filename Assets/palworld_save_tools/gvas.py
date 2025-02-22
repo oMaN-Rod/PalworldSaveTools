@@ -1,17 +1,17 @@
 import base64
 from typing import Any, Callable
-import sys
-import threading
-import time
 
 from palworld_save_tools.archive import FArchiveReader, FArchiveWriter
+
 
 def custom_version_reader(reader: FArchiveReader):
     return (reader.guid(), reader.i32())
 
+
 def custom_version_writer(writer: FArchiveWriter, value: tuple[str, int]):
     writer.guid(value[0])
     writer.i32(value[1])
+
 
 class GvasHeader:
     magic: int
@@ -30,41 +30,51 @@ class GvasHeader:
     @staticmethod
     def read(reader: FArchiveReader) -> "GvasHeader":
         header = GvasHeader()
+        # FileTypeTag
         header.magic = reader.i32()
         if header.magic != 0x53415647:
             raise Exception("invalid magic")
+        # SaveGameFileVersion
         header.save_game_version = reader.i32()
         if header.save_game_version != 3:
-            raise Exception(f"expected save game version 3, got {header.save_game_version}")
+            raise Exception(
+                f"expected save game version 3, got {header.save_game_version}"
+            )
+        # PackageFileUEVersion
         header.package_file_version_ue4 = reader.i32()
         header.package_file_version_ue5 = reader.i32()
+        # SavedEngineVersion
         header.engine_version_major = reader.u16()
         header.engine_version_minor = reader.u16()
         header.engine_version_patch = reader.u16()
         header.engine_version_changelist = reader.u32()
         header.engine_version_branch = reader.fstring()
+        # CustomVersionFormat
         header.custom_version_format = reader.i32()
         if header.custom_version_format != 3:
-            raise Exception(f"expected custom version format 3, got {header.custom_version_format}")
+            raise Exception(
+                f"expected custom version format 3, got {header.custom_version_format}"
+            )
+        # CustomVersions
         header.custom_versions = reader.tarray(custom_version_reader)
         header.save_game_class_name = reader.fstring()
         return header
 
     @staticmethod
-    def load(dict_data: dict[str, Any]) -> "GvasHeader":
+    def load(dict: dict[str, Any]) -> "GvasHeader":
         header = GvasHeader()
-        header.magic = dict_data["magic"]
-        header.save_game_version = dict_data["save_game_version"]
-        header.package_file_version_ue4 = dict_data["package_file_version_ue4"]
-        header.package_file_version_ue5 = dict_data["package_file_version_ue5"]
-        header.engine_version_major = dict_data["engine_version_major"]
-        header.engine_version_minor = dict_data["engine_version_minor"]
-        header.engine_version_patch = dict_data["engine_version_patch"]
-        header.engine_version_changelist = dict_data["engine_version_changelist"]
-        header.engine_version_branch = dict_data["engine_version_branch"]
-        header.custom_version_format = dict_data["custom_version_format"]
-        header.custom_versions = dict_data["custom_versions"]
-        header.save_game_class_name = dict_data["save_game_class_name"]
+        header.magic = dict["magic"]
+        header.save_game_version = dict["save_game_version"]
+        header.package_file_version_ue4 = dict["package_file_version_ue4"]
+        header.package_file_version_ue5 = dict["package_file_version_ue5"]
+        header.engine_version_major = dict["engine_version_major"]
+        header.engine_version_minor = dict["engine_version_minor"]
+        header.engine_version_patch = dict["engine_version_patch"]
+        header.engine_version_changelist = dict["engine_version_changelist"]
+        header.engine_version_branch = dict["engine_version_branch"]
+        header.custom_version_format = dict["custom_version_format"]
+        header.custom_versions = dict["custom_versions"]
+        header.save_game_class_name = dict["save_game_class_name"]
         return header
 
     def dump(self) -> dict[str, Any]:
@@ -97,48 +107,11 @@ class GvasHeader:
         writer.tarray(custom_version_writer, self.custom_versions)
         writer.fstring(self.save_game_class_name)
 
-class skip_loading_progress(threading.Thread):
-    def __init__(self, reader, size):
-        super().__init__()
-        self.reader = reader
-        self.size = size
-        self._stop_event = threading.Event()
-
-    def stop(self):
-        self._stop_event.set()
-
-    def run(self) -> None:
-        try:
-            while not self._stop_event.is_set():
-                current_position = self.reader.data.tell()
-                progress_percent = 100 * current_position / self.size
-
-                if sys.platform in ['linux', 'darwin']:
-                    sys.stdout.write("\033]0;%s - %3.1f%%\a" % ("Loading GVAS file", progress_percent))
-                    sys.stdout.flush()
-                else:
-                    print("\rLoading GVAS file: %3.0f%% completed" % progress_percent, end="", flush=True)
-
-                time.sleep(0.05)
-                
-            # Clear the progress message after completion
-            if sys.platform in ['linux', 'darwin']:
-                sys.stdout.write("\033]0;%s\a" % "Loading GVAS file")
-                sys.stdout.flush()
-            else:
-                print("\rLoading GVAS file: Done" + " " * 20)
-
-        except ValueError:
-            pass
-
-uncompressed_len = [0]
-uncompressed_len[0] = 107303
 
 class GvasFile:
     header: GvasHeader
     properties: dict[str, Any]
     trailer: bytes
-    progress_thread: skip_loading_progress  # Declare the progress thread attribute
 
     @staticmethod
     def read(
@@ -148,42 +121,27 @@ class GvasFile:
         allow_nan: bool = True,
     ) -> "GvasFile":
         gvas_file = GvasFile()
-        try:
-            with FArchiveReader(
-                data,
-                type_hints=type_hints,
-                custom_properties=custom_properties,
-                allow_nan=allow_nan,
-            ) as reader:
-
-                # Start progress tracking thread
-                gvas_file.progress_thread = skip_loading_progress(reader, len(data))
-                gvas_file.progress_thread.start()
-
-                gvas_file.header = GvasHeader.read(reader)
-                gvas_file.properties = reader.properties_until_end()
-                gvas_file.trailer = reader.read_to_end()
-                if gvas_file.trailer != b"\x00\x00\x00\x00":
-                    print(f"{len(gvas_file.trailer)} bytes of trailer data, file may not have fully parsed")
-
-                # Stop progress tracking thread
-                gvas_file.progress_thread.stop()
-                gvas_file.progress_thread.join()
-
-                # store file size
-                uncompressed_len[0] = len(data)
-        except Exception as e:
-            print(f"Error reading GvasFile: {e}")
-            raise  # Re-raise the exception for higher-level handling
-
+        with FArchiveReader(
+            data,
+            type_hints=type_hints,
+            custom_properties=custom_properties,
+            allow_nan=allow_nan,
+        ) as reader:
+            gvas_file.header = GvasHeader.read(reader)
+            gvas_file.properties = reader.properties_until_end()
+            gvas_file.trailer = reader.read_to_end()
+            if gvas_file.trailer != b"\x00\x00\x00\x00":
+                print(
+                    f"{len(gvas_file.trailer)} bytes of trailer data, file may not have fully parsed"
+                )
         return gvas_file
 
     @staticmethod
-    def load(dict_data: dict[str, Any]) -> "GvasFile":
+    def load(dict: dict[str, Any]) -> "GvasFile":
         gvas_file = GvasFile()
-        gvas_file.header = GvasHeader.load(dict_data["header"])
-        gvas_file.properties = dict_data["properties"]
-        gvas_file.trailer = base64.b64decode(dict_data["trailer"])
+        gvas_file.header = GvasHeader.load(dict["header"])
+        gvas_file.properties = dict["properties"]
+        gvas_file.trailer = base64.b64decode(dict["trailer"])
         return gvas_file
 
     def dump(self) -> dict[str, Any]:
@@ -198,7 +156,6 @@ class GvasFile:
     ) -> bytes:
         writer = FArchiveWriter(custom_properties)
         self.header.write(writer)
-        writer.set_properties_count(self.properties, int(uncompressed_len[0]/180))
         writer.properties(self.properties)
         writer.write(self.trailer)
         return writer.bytes()

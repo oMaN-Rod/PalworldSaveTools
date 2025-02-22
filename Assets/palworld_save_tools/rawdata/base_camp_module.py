@@ -13,8 +13,7 @@ NO_OP_TYPES = [
     "EPalBaseCampModuleType::ItemStorages",
     "EPalBaseCampModuleType::FacilityReservation",
     "EPalBaseCampModuleType::ObjectMaintenance",
-    "EPalBaseCampModuleType::TransportItemDirector",
-    "EPalBaseCampModuleType::PassiveEffect",
+    "EPalBaseCampModuleType::ItemStackInfo",
 ]
 
 
@@ -46,6 +45,9 @@ PASSIVE_EFFECT_ENUM = {
     0: "EPalBaseCampPassiveEffectType::None",
     1: "EPalBaseCampPassiveEffectType::WorkSuitability",
     2: "EPalBaseCampPassiveEffectType::WorkHard",
+    3: "EPalBaseCampPassiveEffectType::AllWorkSpeed",
+    4: "EPalBaseCampPassiveEffectType::SanityDecreaseSuppressor",
+    5: "EPalBaseCampPassiveEffectType::EPalBaseCampPassiveEffectType_MAX",
 }
 
 
@@ -56,7 +58,7 @@ def module_passive_effect_reader(reader: FArchiveReader) -> dict[str, Any]:
         raise Exception(f"Unknown passive effect type {data['type']}")
     elif data["type"] == 2:
         data["work_hard_type"] = reader.byte()
-        data["unknown_trailer"] = [b for b in reader.read(4)]
+        data["unknown_trailer"] = [b for b in reader.read(12)]
     return data
 
 
@@ -65,37 +67,35 @@ def decode_bytes(
 ) -> dict[str, Any]:
     reader = parent_reader.internal_copy(bytes(b_bytes), debug=False)
     data: dict[str, Any] = {}
-    
     if module_type in NO_OP_TYPES:
         pass
-    
     elif module_type == "EPalBaseCampModuleType::TransportItemDirector":
         try:
             data["transport_item_character_infos"] = reader.tarray(
                 transport_item_character_info_reader
             )
-        except Exception:
-            # Suppress the error and return the raw bytes
+        except Exception as e:
+            print(
+                f"Warning: Failed to decode transport item director, please report this: {e} ({bytes(b_bytes)!r})"
+            )
             return {"values": b_bytes}
-    
     elif module_type == "EPalBaseCampModuleType::PassiveEffect":
         try:
             data["passive_effects"] = reader.tarray(module_passive_effect_reader)
-        except Exception:
+        except Exception as e:
             reader.data.seek(0)
-            # Suppress the error and return the raw bytes
+            print(
+                f"Warning: Failed to decode passive effect, please report this: {e} ({bytes(b_bytes)!r})"
+            )
             return {"values": b_bytes}
-    
     else:
-        # Unknown module type, return raw bytes
+        print(f"Warning: Unknown base camp module type {module_type}, skipping")
         return {"values": b_bytes}
 
     if not reader.eof():
-        # Suppress EOF warning
-        pass
+        print(f"Warning: EOF not reached for {module_type}")
 
     return data
-
 
 
 def encode(

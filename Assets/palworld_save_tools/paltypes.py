@@ -1,4 +1,5 @@
 from typing import Any, Callable
+
 from palworld_save_tools.archive import FArchiveReader, FArchiveWriter
 from palworld_save_tools.rawdata import (
     base_camp,
@@ -9,6 +10,8 @@ from palworld_save_tools.rawdata import (
     foliage_model,
     foliage_model_instance,
     group,
+    guild_item_storage,
+    guild_lab,
     item_container,
     item_container_slots,
     map_object,
@@ -16,10 +19,7 @@ from palworld_save_tools.rawdata import (
     work_collection,
     worker_director,
 )
-DISABLED_PROPERTIES = {
-    ".worldSaveData.BaseCampSaveData.Value.ModuleMap",
-    ".worldSaveData.MapObjectSaveData",
-}
+
 PALWORLD_TYPE_HINTS: dict[str, str] = {
     ".worldSaveData.CharacterContainerSaveData.Key": "StructProperty",
     ".worldSaveData.CharacterSaveParameterMap.Key": "StructProperty",
@@ -53,7 +53,8 @@ PALWORLD_TYPE_HINTS: dict[str, str] = {
     ".worldSaveData.OilrigSaveData.OilrigMap.Value": "StructProperty",
     ".worldSaveData.SupplySaveData.SupplyInfos.Key": "Guid",
     ".worldSaveData.SupplySaveData.SupplyInfos.Value": "StructProperty",
-    ".worldSaveData.WorldMetaSaveVersionBitMask": "StructProperty",
+    ".worldSaveData.GuildExtraSaveDataMap.Key": "Guid",
+    ".worldSaveData.GuildExtraSaveDataMap.Value": "StructProperty",
 }
 
 PALWORLD_CUSTOM_PROPERTIES: dict[
@@ -76,6 +77,9 @@ PALWORLD_CUSTOM_PROPERTIES: dict[
         item_container_slots.decode,
         item_container_slots.encode,
     ),
+    # This isn't actually serialised into at all?
+    # ".worldSaveData.CharacterContainerSaveData.Value.RawData": (debug.decode, debug.encode),
+    # This duplicates the data already serialised into the Slots UObject?
     ".worldSaveData.CharacterContainerSaveData.Value.Slots.Slots.RawData": (
         character_container.decode,
         character_container.encode,
@@ -83,6 +87,14 @@ PALWORLD_CUSTOM_PROPERTIES: dict[
     ".worldSaveData.DynamicItemSaveData.DynamicItemSaveData.RawData": (
         dynamic_item.decode,
         dynamic_item.encode,
+    ),
+    ".worldSaveData.FoliageGridSaveDataMap.Value.ModelMap.Value.RawData": (
+        foliage_model.decode,
+        foliage_model.encode,
+    ),
+    ".worldSaveData.FoliageGridSaveDataMap.Value.ModelMap.Value.InstanceDataMap.Value.RawData": (
+        foliage_model_instance.decode,
+        foliage_model_instance.encode,
     ),
     ".worldSaveData.BaseCampSaveData.Value.RawData": (
         base_camp.decode,
@@ -101,4 +113,21 @@ PALWORLD_CUSTOM_PROPERTIES: dict[
         base_camp_module.encode,
     ),
     ".worldSaveData.WorkSaveData": (work.decode, work.encode),
+    ".worldSaveData.MapObjectSaveData": (
+        map_object.decode,
+        map_object.encode,
+    ),
+    ".worldSaveData.GuildExtraSaveDataMap.Value.GuildItemStorage.RawData": (
+        guild_item_storage.decode,
+        guild_item_storage.encode,
+    ),
+    ".worldSaveData.GuildExtraSaveDataMap.Value.Lab.RawData": (
+        guild_lab.decode,
+        guild_lab.encode,
+    ),
+}
+
+# List of properties that are not working with newer versions
+DISABLED_PROPERTIES = {
+    ".worldSaveData.BaseCampSaveData.Value.ModuleMap",
 }
