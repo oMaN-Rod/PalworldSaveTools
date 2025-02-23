@@ -25,14 +25,9 @@ def get_directory_from_user():
         else:
             print("Invalid directory path. Please try again.")
 def extract_last_online(data):
-    match = re.search(r'Last Online: ([\d\- :]+)', data)
+    match = re.search(r'Last Online: ([^|]+)', data)
     if match:
-        date_str = match.group(1)
-        try:
-            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            clean_date_str = re.sub(r'[\(\[].*?[\)\]]', '', date_str)
-            return datetime.strptime(clean_date_str.strip(), "%Y-%m-%d %H:%M:%S")
+        return match.group(0)
     return None
 def extract_level(data):
     match = re.search(r'Level: (\d+)', data)
@@ -45,15 +40,18 @@ def extract_pals_count(data):
         return int(match.group(1))
     return None
 def filter_players_by_days_and_level(players, days, level):
-    current_time = datetime.now()
     filtered_players = []
     for player in players:
-        last_online = extract_last_online(player)
-        player_level = extract_level(player)
-        pals_count = extract_pals_count(player)
-        if last_online and player_level is not None and pals_count is not None:
-            if (current_time - last_online) >= timedelta(days=days) and player_level <= level:
-                filtered_players.append((player, pals_count))
+        full_last_online = extract_last_online(player)
+        if full_last_online:
+            player_level = extract_level(player)
+            pals_count = extract_pals_count(player)
+            if player_level is not None and pals_count is not None:
+                match_days = re.search(r'(\d+)d', full_last_online)
+                if match_days:
+                    last_online_days = int(match_days.group(1))
+                    if last_online_days >= days and player_level <= level:
+                        filtered_players.append((player, pals_count))
     return filtered_players
 def delete_player_saves(player_data):
     players_folder = "PalWorldSave/Players"
@@ -88,6 +86,13 @@ def delete_player_saves(player_data):
     if deleted_count == 0: print(f"No PlayerUID.sav files found for deletion, skipping...") 
     return deleted_count, total_pals_to_delete
 def main(file_path):
+    players_folder = os.path.join(os.path.dirname(file_path), 'PalWorldSave', 'Players')
+    print(f"Checking players folder at: {players_folder}")
+    if not os.path.exists(players_folder):
+        print(f"Error: The 'Players' folder does not exist at {players_folder}.")
+        sys.exit(1)
+    players_before = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
+    print(f"There are {players_before} players in the 'Players' folder.")
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             player_data = file.readlines()
@@ -104,13 +109,13 @@ def main(file_path):
     total_pals_deleted = sum(pals_count for _, pals_count in sorted_players)
     total_deleted_players = len(sorted_players) - len(filtered_uids)
     delete_count, _ = delete_player_saves(sorted_players)
+    players_after = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
     print("=" * 80)
-    #print(f"Total Players: {len(player_data)}")
-    #print(f"Total Players Deleted: {total_deleted_players+ len(filtered_uids)}")
-    #print(f"Total Pals Count of Deleted Players: {total_pals_deleted}")
-    #print(f"Total Players Kept: {len(player_data) - len(sorted_players)}")
+    print(f"Total Players: {players_before}")
+    print(f"Total Players Deleted: {total_deleted_players + len(filtered_uids)}")
+    print(f"Total Pals Count of Deleted Players: {total_pals_deleted}")
+    print(f"Total Players Kept: {players_after}")
     print(f"Filtered by: Days since last online >= {days}, Level <= {level}")
-    print(f"Deleted {delete_count} PlayerUID.sav files.")
     print("=" * 80)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Sort, filter, and delete players by days since last online and level.")

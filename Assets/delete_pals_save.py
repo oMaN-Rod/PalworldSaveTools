@@ -57,6 +57,7 @@ def delete_player_saves(player_info):
     backup_whole_directory("PalWorldSave", backup_folder)
     total_pals_to_delete = sum(pals_found for _, _, pals_found in player_info)
     deleted_count = 0
+    players_before = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
     for line, uid, _ in player_info:
         uid_no_hyphens = uid.replace('-', '')
         sav_filename = f"{uid_no_hyphens}.sav"
@@ -67,18 +68,24 @@ def delete_player_saves(player_info):
             deleted_count += 1
             print(f"Deleted: {sav_file_path}")
             print(f"Deleted Player Info: {line}")
+    players_after = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
     print("=" * 80)
+    print(f"Total Players: {players_before}")
+    print(f"Total Players Deleted: {deleted_count}")
+    print(f"Total Pals Count of Deleted Players: {total_pals_to_delete}")
+    print(f"Total Players Kept: {players_after}")
     print(f"Filtered by: Pals <= {max_pals}")
-    if deleted_count == 0: print(f"No PlayerUID.sav files found for deletion, skipping...")
-    else: print(f"Deleted {deleted_count} PlayerUID.sav files.")
     print("=" * 80)
 if __name__ == "__main__":
     if len(sys.argv) < 1:
         print("Usage: python delete_pals_save.py <log_file>")
         sys.exit(1)
     log_file = sys.argv[1]
+    players_folder = os.path.join(os.path.dirname(log_file), 'PalWorldSave', 'Players')
+    players_count = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
+    print(f"There are {players_count} players in the 'Players' folder.")
     max_pals = int(input("Enter maximum number of pals per player to delete: "))
     filtered_uids = get_filtered_uids('players_filtered.log')
     player_info = find_player_uids_with_max_pals(log_file, filtered_uids, max_pals)
-    if player_info:delete_player_saves(player_info)
+    if player_info: delete_player_saves(player_info)
     else: print(f"No PlayerUIDs found in {log_file} that match the filter.")
