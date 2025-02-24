@@ -118,7 +118,6 @@ def reset_update_tools():
     if os.name == 'nt': subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
-    setup_environment()
 def about_tools():
     display_logo()
     print("PalWorldSaveTools, all in one tool for fixing/transferring/editing/etc PalWorld saves.")
@@ -192,7 +191,8 @@ if __name__ == "__main__":
                 try:
                     choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
                     os.system('cls' if os.name == 'nt' else 'clear')
-                    run_tool(choice)
+                    run_tool(choice)                    
                     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+                    if choice == 17: break 
                 except ValueError:
                     print(f"{RED_FONT}Invalid input. Please enter a number.{RESET_FONT}")
