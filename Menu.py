@@ -120,7 +120,7 @@ def reset_update_tools():
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-    os.execv(sys.argv[0], sys.argv)
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 def about_tools():
     display_logo()
     print("PalWorldSaveTools, all in one tool for fixing/transferring/editing/etc PalWorld saves.")
