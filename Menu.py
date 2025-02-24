@@ -170,8 +170,6 @@ pws_tools = [
     "PalWorldSaveTools Readme",
     "Exit"
 ]
-def venv_exists():
-    return os.path.exists(os.path.join(os.getcwd(), "venv"))
 if __name__ == "__main__":
     while True:
         tools_version, game_version = get_versions()
