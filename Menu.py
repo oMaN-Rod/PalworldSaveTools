@@ -7,7 +7,8 @@ YELLOW_FONT= "\033[93m"
 PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
-def setup_environment():    
+def setup_environment():
+    os.system('cls' if os.name == 'nt' else 'clear')
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     venv_folder = "venv"
     venv_python = os.path.join(venv_folder, "Scripts", "python.exe") if os.name == 'nt' else os.path.join(venv_folder, "bin", "python")
