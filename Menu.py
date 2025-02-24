@@ -11,14 +11,14 @@ def setup_environment():
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-    clear_console()
+    os.system('cls' if os.name == 'nt' else 'clear')
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-    os.makedirs("PalWorldSave/Players", exist_ok=True)
+    os.makedirs("PalWorldSave/Players", exist_ok=True)    
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
     venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     sys.executable = venv_python
-    subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
-    subprocess.run([venv_python, "-m", "pip", "install", "--no-cache-dir", "-r", "requirements.txt"])
+    pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
+    subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
     playwright_browsers_path = os.path.join(os.path.dirname(__file__), "venv", "playwright_browsers")
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
@@ -30,7 +30,7 @@ columns = os.get_terminal_size().columns
 def center_text(text):
     return text.center(columns)
 def display_logo():
-    clear_console()
+    os.system('cls' if os.name == 'nt' else 'clear')
     print("=" * 85)
     text = r"""  ______     _ _    _            _     _ _____               _____           _     
   | ___ \   | | |  | |          | |   | /  ___|             |_   _|         | |    
@@ -118,6 +118,8 @@ def reset_update_tools():
     if os.name == 'nt': subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
+    input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+    sys.exit()
 def about_tools():
     display_logo()
     print("PalWorldSaveTools, all in one tool for fixing/transferring/editing/etc PalWorld saves.")
@@ -169,31 +171,27 @@ pws_tools = [
     "PalWorldSaveTools Readme",
     "Exit"
 ]
-def venv_exists():
-    return os.path.exists(os.path.join(os.getcwd(), "venv"))
-def clear_console():
-    os.system('cls' if os.name == 'nt' else 'clear')
-def main_loop():
+if __name__ == "__main__":
     tools_version, game_version = get_versions()
     set_console_title(f"PalWorldSaveTools v{tools_version}")
     setup_environment()
-    clear_console()
-    return tools_version, game_version
-if __name__ == "__main__":
+    os.system('cls' if os.name == 'nt' else 'clear')
     if len(sys.argv) > 1:
         try:
             choice = int(sys.argv[1])
             run_tool(choice)
-            main_loop()
+            tools_version, game_version = get_versions()
+            set_console_title(f"PalWorldSaveTools v{tools_version}")
         except ValueError:
             print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
     else:
         while True:
-            tools_version, game_version = main_loop()
+            tools_version, game_version = get_versions()
+            set_console_title(f"PalWorldSaveTools v{tools_version}")
             display_menu(tools_version, game_version)
             try:
                 choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
-                clear_console()
+                os.system('cls' if os.name == 'nt' else 'clear')
                 run_tool(choice)
                 input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
             except ValueError:
