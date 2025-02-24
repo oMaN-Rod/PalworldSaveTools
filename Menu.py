@@ -11,11 +11,13 @@ def setup_environment():
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+    originial
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     os.makedirs("PalWorldSave/Players", exist_ok=True)    
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
     venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+    original_executable = sys.executable
     sys.executable = venv_python
     pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
     subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
@@ -120,7 +122,7 @@ def reset_update_tools():
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    os.execv(original_executable, [original_executable] + sys.argv)
 def about_tools():
     display_logo()
     print("PalWorldSaveTools, all in one tool for fixing/transferring/editing/etc PalWorld saves.")
