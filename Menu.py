@@ -171,30 +171,30 @@ pws_tools = [
 ]
 def venv_exists():
     return os.path.exists(os.path.join(os.getcwd(), "venv"))
+def clear_console():
+    os.system('cls' if os.name == 'nt' else 'clear')
+def main_loop():
+    tools_version, game_version = get_versions()
+    set_console_title(f"PalWorldSaveTools v{tools_version}")
+    if not venv_exists(): setup_environment()
+    clear_console()
+    return tools_version, game_version
 if __name__ == "__main__":
-    while True:
-        tools_version, game_version = get_versions()
-        set_console_title(f"PalWorldSaveTools v{tools_version}")
-        if not venv_exists(): setup_environment()
-        os.system('cls' if os.name == 'nt' else 'clear') 
-        if len(sys.argv) > 1:
+    if len(sys.argv) > 1:
+        try:
+            choice = int(sys.argv[1])
+            run_tool(choice)
+            main_loop()
+        except ValueError:
+            print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
+    else:
+        while True:
+            tools_version, game_version = main_loop()
+            display_menu(tools_version, game_version)
             try:
-                choice = int(sys.argv[1])
+                choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
+                clear_console()
                 run_tool(choice)
-                tools_version, game_version = get_versions()
-                set_console_title(f"PalWorldSaveTools v{tools_version}")
+                input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
             except ValueError:
-                print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
-        else:
-            while True:                
-                tools_version, game_version = get_versions()
-                set_console_title(f"PalWorldSaveTools v{tools_version}")
-                if not venv_exists(): setup_environment()
-                display_menu(tools_version, game_version)
-                try:
-                    choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    run_tool(choice)                    
-                    input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-                except ValueError:
-                    print(f"{RED_FONT}Invalid input. Please enter a number.{RESET_FONT}")
+                print(f"{RED_FONT}Invalid input. Please enter a number.{RESET_FONT}")
