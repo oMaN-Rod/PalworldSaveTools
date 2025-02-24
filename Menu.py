@@ -7,21 +7,17 @@ YELLOW_FONT= "\033[93m"
 PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
-def setup_environment():
-    if sys.platform != "win32":
-        import resource
-        resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-    os.system('cls' if os.name == 'nt' else 'clear')
+def setup_environment():    
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-    os.makedirs("PalWorldSave/Players", exist_ok=True)    
-    if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
-    venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+    venv_folder = "venv"
+    venv_python = os.path.join(venv_folder, "Scripts", "python.exe") if os.name == 'nt' else os.path.join(venv_folder, "bin", "python")
+    if not os.path.exists(venv_folder): subprocess.run([sys.executable, "-m", "venv", venv_folder])
     sys.executable = venv_python
-    pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
-    subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
-    playwright_browsers_path = os.path.join(os.path.dirname(__file__), "venv", "playwright_browsers")
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
-    subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
+    subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "-r", "requirements.txt"])
+    os.makedirs("PalWorldSave/Players", exist_ok=True)
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.path.dirname(__file__), venv_folder, "playwright_browsers")
+    subprocess.run([sys.executable, "-m", "playwright", "install", "webkit"])
 def get_versions():
     tools_version = "1.0.27"
     game_version = "0.4.15"
