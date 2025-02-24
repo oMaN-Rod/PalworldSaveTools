@@ -11,7 +11,6 @@ def setup_environment():
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-    originial
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     os.makedirs("PalWorldSave/Players", exist_ok=True)    
