@@ -18,6 +18,7 @@ def setup_environment():
     venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     sys.executable = venv_python
     pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
+    subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
     subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
     playwright_browsers_path = os.path.join(os.path.dirname(__file__), "venv", "playwright_browsers")
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
