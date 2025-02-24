@@ -6,6 +6,7 @@ GREEN_FONT = "\033[92m"
 YELLOW_FONT= "\033[93m"
 PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
+original_executable = sys.executable
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
 def setup_environment():
     if sys.platform != "win32":
@@ -15,8 +16,7 @@ def setup_environment():
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     os.makedirs("PalWorldSave/Players", exist_ok=True)    
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
-    venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    original_executable = sys.executable
+    venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")    
     sys.executable = venv_python
     pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
     subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
