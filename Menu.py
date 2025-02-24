@@ -176,7 +176,7 @@ def clear_console():
 def main_loop():
     tools_version, game_version = get_versions()
     set_console_title(f"PalWorldSaveTools v{tools_version}")
-    if not venv_exists(): setup_environment()
+    setup_environment()
     clear_console()
     return tools_version, game_version
 if __name__ == "__main__":
