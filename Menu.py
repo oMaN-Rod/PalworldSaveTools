@@ -195,8 +195,6 @@ if __name__ == "__main__":
                     os.system('cls' if os.name == 'nt' else 'clear')
                     run_tool(choice)
                     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")                    
-                    if not venv_exists():
-                        print(f"{RED_FONT}Virtual environment missing! Restarting...{RESET_FONT}")
-                        break
+                    if not venv_exists(): break
                 except ValueError:
                     print(f"{RED_FONT}Invalid input. Please enter a number.{RESET_FONT}")
