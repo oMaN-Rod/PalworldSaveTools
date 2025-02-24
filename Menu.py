@@ -7,8 +7,7 @@ YELLOW_FONT= "\033[93m"
 PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
-def setup_environment(original_executable):
-    sys.executable = original_executable
+def setup_environment():
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
@@ -121,7 +120,7 @@ def reset_update_tools():
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-    subprocess.Popen([sys.executable, "Menu.py"], start_new_session=True)
+    #subprocess.Popen([sys.executable] + sys.argv, start_new_session=True)
     sys.exit()
 def about_tools():
     display_logo()
@@ -174,12 +173,11 @@ pws_tools = [
     "PalWorldSaveTools Readme",
     "Exit"
 ]
-if __name__ == "__main__":    
-    original_executable = sys.executable
+if __name__ == "__main__":
     tools_version, game_version = get_versions()
     set_console_title(f"PalWorldSaveTools v{tools_version}")
-    setup_environment(original_executable)
-    os.system('cls' if os.name == 'nt' else 'clear')    
+    setup_environment()
+    os.system('cls' if os.name == 'nt' else 'clear')
     if len(sys.argv) > 1:
         try:
             choice = int(sys.argv[1])
