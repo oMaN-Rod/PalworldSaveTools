@@ -11,7 +11,7 @@ def setup_environment():
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-    os.system('cls' if os.name == 'nt' else 'clear')
+    clear_console()
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     os.makedirs("PalWorldSave/Players", exist_ok=True)
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
@@ -30,7 +30,7 @@ columns = os.get_terminal_size().columns
 def center_text(text):
     return text.center(columns)
 def display_logo():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    clear_console()
     print("=" * 85)
     text = r"""  ______     _ _    _            _     _ _____               _____           _     
   | ___ \   | | |  | |          | |   | /  ___|             |_   _|         | |    
