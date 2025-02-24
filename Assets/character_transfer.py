@@ -735,7 +735,7 @@ def load_player_file(level_sav_path, player_uid):
         if not os.path.exists(player_file_path):
             messagebox.showerror(message=f"Player file {player_file_path} not present")
             return None
-    raw_gvas, _ = load_file(player_file_path)
+    raw_gvas, save_type = load_file(player_file_path)
     if not raw_gvas:
         messagebox.showerror(message=f"Invalid file {player_file_path}")
         return
@@ -780,7 +780,7 @@ def source_level_file():
         if not tmp.endswith('.sav'):
             messagebox.showerror("Incorrect file", "This is not the right file. Please select *.sav file.")
             return
-        raw_gvas, _ = load_file(tmp)
+        raw_gvas, save_type = load_file(tmp)
         if not raw_gvas:
             messagebox.showerror(message="Invalid files, files must be .sav")
             return
