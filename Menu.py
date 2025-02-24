@@ -13,12 +13,12 @@ def setup_environment():
     venv_folder = "venv"
     venv_python = os.path.join(venv_folder, "Scripts", "python.exe") if os.name == 'nt' else os.path.join(venv_folder, "bin", "python")
     if not os.path.exists(venv_folder): subprocess.run([sys.executable, "-m", "venv", venv_folder])
-    sys.executable = venv_python
-    subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "-r", "requirements.txt"])
+    if os.name != 'nt': subprocess.run(["source", os.path.join(venv_folder, "bin", "activate")], shell=True)
+    subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
+    subprocess.run([venv_python, "-m", "pip", "install", "--no-cache-dir", "-r", "requirements.txt"])
     os.makedirs("PalWorldSave/Players", exist_ok=True)
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.path.dirname(__file__), venv_folder, "playwright_browsers")
-    subprocess.run([sys.executable, "-m", "playwright", "install", "webkit"])
+    subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
     tools_version = "1.0.27"
     game_version = "0.4.15"
