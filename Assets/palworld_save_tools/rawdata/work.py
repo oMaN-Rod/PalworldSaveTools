@@ -250,7 +250,7 @@ def encode_bytes(p: dict[str, Any], work_type: str) -> bytes:
         writer.guid(p["transform"]["guid"])
         writer.guid(p["transform"]["instance_id"])
     else:
-        print(f"Unknown EPalWorkTransformType, please report this: {transform_type}: {work_type}")
+        #print(f"Unknown EPalWorkTransformType, please report this: {transform_type}: {work_type}")
         writer.write(bytes(p["transform"]["raw_data"]))
 
     encoded_bytes = writer.bytes()

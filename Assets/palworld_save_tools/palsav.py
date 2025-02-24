@@ -1,16 +1,18 @@
 import zlib
 MAGIC_BYTES = b'PlZ'
-def decompress_sav_to_gvas(data: bytes) -> tuple[bytes, int, bytes]:
+def decompress_sav_to_gvas(data: bytes) -> tuple[bytes, int]:
     uncompressed_len = int.from_bytes(data[0:4], byteorder="little")
     compressed_len = int.from_bytes(data[4:8], byteorder="little")
     magic_bytes = data[8:11]
     save_type = data[11]
     data_start_offset = 12
+    cnk_header = b""
     if magic_bytes == b"CNK":
         uncompressed_len = int.from_bytes(data[12:16], byteorder="little")
         compressed_len = int.from_bytes(data[16:20], byteorder="little")
         magic_bytes = data[20:23]
         save_type = data[23]
+        cnk_header = data[:24]
         data_start_offset = 24
     if magic_bytes != MAGIC_BYTES:
         raise Exception(f"Not a compressed Palworld save, found {magic_bytes} instead of {MAGIC_BYTES}")
@@ -30,7 +32,7 @@ def decompress_sav_to_gvas(data: bytes) -> tuple[bytes, int, bytes]:
             raise Exception(f"Unhandled compression type: {save_type}")
         if uncompressed_len != len(uncompressed_data):
             raise Exception(f"Incorrect uncompressed length: {uncompressed_len}")
-        return uncompressed_data, save_type, data[:data_start_offset]
+        return uncompressed_data, save_type
     except Exception as e:
         print(f"Exception encountered: {e}")
         raise

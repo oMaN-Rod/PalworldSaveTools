@@ -79,7 +79,7 @@ def convert_sav_to_json(
     print(f"Decompressing sav file")
     with open(filename, "rb") as f:
         data = f.read()
-        raw_gvas, save_type, cnk_header = decompress_sav_to_gvas(data)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     print(f"Loading GVAS file")
     custom_properties = {}
     if len(custom_properties_keys) > 0 and custom_properties_keys[0] == "all":

@@ -708,7 +708,7 @@ of your save folder before continuing. Press Yes if you would like to continue.'
 def sav_to_gvas(file):
     with open(file, 'rb') as f:
         data = f.read()
-        raw_gvas, save_type, cnk_header = decompress_sav_to_gvas(data)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     return raw_gvas, save_type
 def gvas_to_sav(file, gvas_data):
     sav_file_data = compress_gvas_to_sav(gvas_data, target_save_type)

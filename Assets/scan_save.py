@@ -145,7 +145,7 @@ def LoadFile(filename):
     with open(filename, "rb") as f:
         start_time = time.time()
         data = f.read()
-        raw_gvas, save_type, cnk_header = decompress_sav_to_gvas(data)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
         print("Done in %.2fs." % (time.time() - start_time))
         print(f"Parsing {filename}...", end="", flush=True)
         start_time = time.time()

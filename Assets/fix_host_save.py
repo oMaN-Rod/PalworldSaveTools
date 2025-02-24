@@ -62,7 +62,7 @@ def sav_to_json(filepath):
     print("Decompressing sav file")
     with open(filepath, "rb") as f:
         data = f.read()
-        raw_gvas, save_type, cnk_header = decompress_sav_to_gvas(data)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     print("Loading GVAS file")
     gvas_file = ProgressGvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES)
     json_data = gvas_file.dump()
