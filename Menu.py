@@ -9,7 +9,6 @@ RESET_FONT = "\033[0m"
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
 def setup_environment(original_executable):
     sys.executable = original_executable
-    print(f"Setting sys.executable to: {original_executable}")
     if sys.platform != "win32":
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
@@ -19,7 +18,6 @@ def setup_environment(original_executable):
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
     venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     sys.executable = venv_python
-    print(f"Setting sys.executable to virtual environment: {sys.executable}")
     pip_executable = os.path.join("venv", "Scripts", "pip") if os.name == 'nt' else os.path.join("venv", "bin", "pip")
     subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
     subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
@@ -178,7 +176,6 @@ pws_tools = [
 ]
 if __name__ == "__main__":    
     original_executable = sys.executable
-    print(f"Original executable: {original_executable}")
     tools_version, game_version = get_versions()
     set_console_title(f"PalWorldSaveTools v{tools_version}")
     setup_environment(original_executable)
