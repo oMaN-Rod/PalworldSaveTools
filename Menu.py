@@ -176,7 +176,6 @@ if __name__ == "__main__":
         tools_version, game_version = get_versions()
         set_console_title(f"PalWorldSaveTools v{tools_version}")
         if not venv_exists(): setup_environment()
-        setup_environment() 
         os.system('cls' if os.name == 'nt' else 'clear') 
         if len(sys.argv) > 1:
             try:
@@ -187,10 +186,10 @@ if __name__ == "__main__":
             except ValueError:
                 print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
         else:
-            while True:
-                if not venv_exists(): setup_environment()
+            while True:                
                 tools_version, game_version = get_versions()
                 set_console_title(f"PalWorldSaveTools v{tools_version}")
+                if not venv_exists(): setup_environment()
                 display_menu(tools_version, game_version)
                 try:
                     choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
