@@ -25,51 +25,49 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.27"
+    tools_version = "1.0.28"
     game_version = "0.4.15"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
 def center_text(text):
-    return text.center(columns)
+    return "\n".join(line.center(columns) for line in text.splitlines())
 def display_logo():
     os.system('cls' if os.name == 'nt' else 'clear')
-    print("=" * 85)
-    text = r"""
-  _____      _                    _     _  _____              _______          _     
- |  __ \    | |                  | |   | |/ ____|            |__   __|        | |    
- | |__) |_ _| |_      _____  _ __| | __| | (___   __ ___   _____| | ___   ___ | |___ 
- |  ___/ _` | \ \ /\ / / _ \| '__| |/ _` |\___ \ / _` \ \ / / _ \ |/ _ \ / _ \| / __|
- | |  | (_| | |\ V  V / (_) | |  | | (_| |____) | (_| |\ V /  __/ | (_) | (_) | \__ \
- |_|   \__,_|_| \_/\_/ \___/|_|  |_|\__,_|_____/ \__,_| \_/ \___|_|\___/ \___/|_|___/
+    print(center_text("=" * 85))
+    text = r"""     
+  ___      _                _    _ ___              _____         _    
+ | _ \__ _| |_ __ _____ _ _| |__| / __| __ ___ ____|_   _|__  ___| |___
+ |  _/ _` | \ V  V / _ \ '_| / _` \__ \/ _` \ V / -_)| |/ _ \/ _ \ (_-<
+ |_| \__,_|_|\_/\_/\___/_| |_\__,_|___/\__,_|\_/\___||_|\___/\___/_/__/
     """
-    print(text)
+    print(center_text(text))
     print(f"{center_text(f'{GREEN_FONT}v{tools_version} - Working as of v{game_version} Patch{RESET_FONT}')}")
     print(f"{center_text(f'{RED_FONT}WARNING: ALWAYS BACKUP YOUR SAVES BEFORE USING THIS TOOL!{RESET_FONT}')}")
     print(f"{center_text(f'{RED_FONT}MAKE SURE TO UPDATE YOUR SAVES ON/AFTER THE v{game_version} PATCH!{RESET_FONT}')}")
     print(f"{center_text(f'{RED_FONT}IF YOU DO NOT UPDATE YOUR SAVES, YOU WILL GET ERRORS!{RESET_FONT}')}")
-    print("=" * 85)
+    print(center_text("=" * 85))
 def display_menu(tools_version, game_version):
     display_logo()
     text = f"{BLUE_FONT}Converting Tools{RESET_FONT}"
     print(center_text(text))
-    print("=" * 85)
-    for i, tool in enumerate(converting_tools, 1): print(f"{BLUE_FONT}{i}{RESET_FONT}. {tool}")
-    print("=" * 85)
+    print(center_text("=" * 85))
+    for i, tool in enumerate(converting_tools, 1): print(center_text(f"{BLUE_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
     text = f"{GREEN_FONT}Management Tools{RESET_FONT}"
     print(center_text(text))
-    print("=" * 85)
-    for i, tool in enumerate(management_tools, len(converting_tools) + 1): print(f"{GREEN_FONT}{i}{RESET_FONT}. {tool}")
-    print("=" * 85)
+    print(center_text("=" * 85))
+    for i, tool in enumerate(management_tools, len(converting_tools) + 1): print(center_text(f"{GREEN_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
     text = f"{YELLOW_FONT}Cleaning Tools{RESET_FONT}"
     print(center_text(text))
-    print("=" * 85)
-    for i, tool in enumerate(cleaning_tools, len(converting_tools) + len(management_tools) + 1): print(f"{YELLOW_FONT}{i}{RESET_FONT}. {tool}")
-    print("=" * 85)
+    print(center_text("=" * 85))
+    for i, tool in enumerate(cleaning_tools, len(converting_tools) + len(management_tools) + 1): print(center_text(f"{YELLOW_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
     text = f"{PURPLE_FONT}PalworldSaveTools{RESET_FONT}"
     print(center_text(text))
-    print("=" * 85)
-    for i, tool in enumerate(pws_tools, len(converting_tools) + len(management_tools) + len(cleaning_tools) + 1): print(f"{PURPLE_FONT}{i}{RESET_FONT}. {tool}")
-    print("=" * 85)
+    print(center_text("=" * 85))
+    for i, tool in enumerate(pws_tools, len(converting_tools) + len(management_tools) + len(cleaning_tools) + 1): print(center_text(f"{PURPLE_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
 def run_tool(choice):
     assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
     tool_mapping = {
@@ -186,16 +184,15 @@ if __name__ == "__main__":
             tools_version, game_version = get_versions()
             set_console_title(f"PalworldSaveTools v{tools_version}")
         except ValueError:
-            print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
+            print(center_text(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}"))
     else:
         while True:
             tools_version, game_version = get_versions()
             set_console_title(f"PalworldSaveTools v{tools_version}")
             display_menu(tools_version, game_version)
             try:
-                choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
+                choice = int(input(f"{GREEN_FONT}Select what you want to do:{RESET_FONT}"))
                 os.system('cls' if os.name == 'nt' else 'clear')
                 run_tool(choice)
                 input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-            except ValueError:
-                print(f"{RED_FONT}Invalid input. Please enter a number.{RESET_FONT}")
+            except ValueError: pass
