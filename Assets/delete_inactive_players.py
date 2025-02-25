@@ -4,7 +4,7 @@ def backup_whole_directory(source_folder, backup_folder):
     if not os.path.exists(backup_folder):
         os.makedirs(backup_folder)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_folder, f"PalWorldSave_backup_{timestamp}")
+    backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
     print(f"Backup of {source_folder} created at: {backup_path}")
 def get_number_in_range(min_value, max_value):
@@ -54,12 +54,12 @@ def filter_players_by_days_and_level(players, days, level):
                         filtered_players.append((player, pals_count))
     return filtered_players
 def delete_player_saves(player_data):
-    players_folder = "PalWorldSave/Players"
+    players_folder = "PalworldSave/Players"
     backup_folder = "Backups/Delete Inactive Players Saves"
     if not os.path.exists(players_folder):
         print(f"Players folder '{players_folder}' not found.")
         return
-    backup_whole_directory("PalWorldSave", backup_folder)
+    backup_whole_directory("PalworldSave", backup_folder)
     filtered_uids = set()
     try:
         with open('players_filtered.log', 'r', encoding='utf-8') as f:
@@ -86,7 +86,7 @@ def delete_player_saves(player_data):
     if deleted_count == 0: print(f"No PlayerUID.sav files found for deletion, skipping...") 
     return deleted_count, total_pals_to_delete
 def main(file_path):
-    players_folder = os.path.join(os.path.dirname(file_path), 'PalWorldSave', 'Players')
+    players_folder = os.path.join(os.path.dirname(file_path), 'PalworldSave', 'Players')
     print(f"Checking players folder at: {players_folder}")
     if not os.path.exists(players_folder):
         print(f"Error: The 'Players' folder does not exist at {players_folder}.")

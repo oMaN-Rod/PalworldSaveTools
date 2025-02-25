@@ -4,7 +4,7 @@ def backup_whole_directory(source_folder, backup_folder):
     if not os.path.exists(backup_folder):
         os.makedirs(backup_folder)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_folder, f"PalWorldSave_backup_{timestamp}")
+    backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
     print(f"Backup of {source_folder} created at: {backup_path}")
 def get_number_in_range(min_value, max_value):
@@ -49,12 +49,12 @@ def find_player_uids_with_max_pals(log_file, filtered_uids, max_pals):
             player_info.append((line.strip(), player_uid, pals_found))
     return player_info
 def delete_player_saves(player_info):
-    players_folder = "PalWorldSave/Players"
+    players_folder = "PalworldSave/Players"
     backup_folder = "Backups/Delete Saves by Pals Count"
     if not os.path.exists(players_folder):
         print(f"Players folder '{players_folder}' not found.")
         return
-    backup_whole_directory("PalWorldSave", backup_folder)
+    backup_whole_directory("PalworldSave", backup_folder)
     total_pals_to_delete = sum(pals_found for _, _, pals_found in player_info)
     deleted_count = 0
     players_before = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         print("Usage: python delete_pals_save.py <log_file>")
         sys.exit(1)
     log_file = sys.argv[1]
-    players_folder = os.path.join(os.path.dirname(log_file), 'PalWorldSave', 'Players')
+    players_folder = os.path.join(os.path.dirname(log_file), 'PalworldSave', 'Players')
     players_count = len([f for f in os.listdir(players_folder) if f.endswith(".sav")])
     print(f"There are {players_count} players in the 'Players' folder.")
     max_pals = int(input("Enter maximum number of pals per player to delete: "))

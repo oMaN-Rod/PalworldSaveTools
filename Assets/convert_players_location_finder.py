@@ -2,7 +2,7 @@ from convert import *
 def search_for_players_folders(search_name, root_path):
     return [
         os.path.join(root, dir_name)
-        for root, dirs, _ in os.walk(os.path.join(root_path, "PalWorldSave"))
+        for root, dirs, _ in os.walk(os.path.join(root_path, "PalworldSave"))
         for dir_name in dirs
         if dir_name == search_name
     ]

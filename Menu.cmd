@@ -1,5 +1,5 @@
 @echo off
-title PalWorldSaveTools
+title PalworldSaveTools
 mode con: cols=85 lines=47
-python Menu.py
+python menu.py
 pause

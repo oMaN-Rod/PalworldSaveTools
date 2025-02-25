@@ -568,7 +568,7 @@ def backup_file(source_file):
     print("\nDone")
 def Save(exit_now=True):
     print("Processing GVAS to Sav file...", end="", flush=True)
-    if "Pal.PalWorldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name:
+    if "Pal.PalworldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name:
         save_type = 0x32
     else:
         save_type = 0x31

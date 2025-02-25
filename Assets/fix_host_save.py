@@ -4,7 +4,7 @@ def backup_whole_directory(source_folder, backup_folder):
     if not os.path.exists(backup_folder):
         os.makedirs(backup_folder)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_folder, f"PalWorldSave_backup_{timestamp}")
+    backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
     print(f"Backup of {source_folder} created at: {backup_path}")
 def fix_save(save_path, new_guid, old_guid, guild_fix=True):
@@ -71,7 +71,7 @@ def json_to_sav(json_data, output_filepath):
     print(f"Converting data to SAV, saving to {output_filepath}")
     gvas_file = GvasFile.load(json_data)
     print("Compressing SAV file")
-    save_type = 0x32 if "Pal.PalWorldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name else 0x31
+    save_type = 0x32 if "Pal.PalworldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name else 0x31
     sav_file = compress_gvas_to_sav(gvas_file.write(SKP_PALWORLD_CUSTOM_PROPERTIES), save_type)
     print(f"Writing SAV file to {output_filepath}")
     with open(output_filepath, "wb") as f: f.write(sav_file)
@@ -89,7 +89,7 @@ def main():
     sg.theme('Dark')
     layout = [
         [sg.Text("Please select the \"Level.sav\" file that should be updated:")],
-        [sg.InputText(key="file_path", enable_events=True, default_text=os.path.join("PalWorldSave", "Level.sav")), sg.FileBrowse(file_types=(("SAV Files", "*.sav"),))],
+        [sg.InputText(key="file_path", enable_events=True, default_text=os.path.join("PalworldSave", "Level.sav")), sg.FileBrowse(file_types=(("SAV Files", "*.sav"),))],
         [sg.Text("Select the old GUID:")],
         [sg.InputText(key="search_old_guid", enable_events=True, size=(20, 1))],
         [sg.Combo([], key='old_guid', enable_events=True, size=(40, 1))],

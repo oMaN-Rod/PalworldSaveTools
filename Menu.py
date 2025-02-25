@@ -14,7 +14,7 @@ def setup_environment():
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-    os.makedirs("PalWorldSave/Players", exist_ok=True)    
+    os.makedirs("PalworldSave/Players", exist_ok=True)    
     if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
     venv_python = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")    
     sys.executable = venv_python
@@ -34,12 +34,13 @@ def center_text(text):
 def display_logo():
     os.system('cls' if os.name == 'nt' else 'clear')
     print("=" * 85)
-    text = r"""  ______     _ _    _            _     _ _____               _____           _     
-  | ___ \   | | |  | |          | |   | /  ___|             |_   _|         | |    
-  | |_/ /_ _| | |  | | ___  _ __| | __| \ `--.  __ ___   _____| | ___   ___ | |___ 
-  |  __/ _` | | |/\| |/ _ \| '__| |/ _` |`--. \/ _` \ \ / / _ \ |/ _ \ / _ \| / __|
-  | | | (_| | \  /\  / (_) | |  | | (_| /\__/ / (_| |\ V /  __/ | (_) | (_) | \__ \
-  \_|  \__,_|_|\/  \/ \___/|_|  |_|\__,_\____/ \__,_| \_/ \___\_/\___/ \___/|_|___/
+    text = r"""
+  _____      _                    _     _  _____              _______          _     
+ |  __ \    | |                  | |   | |/ ____|            |__   __|        | |    
+ | |__) |_ _| |_      _____  _ __| | __| | (___   __ ___   _____| | ___   ___ | |___ 
+ |  ___/ _` | \ \ /\ / / _ \| '__| |/ _` |\___ \ / _` \ \ / / _ \ |/ _ \ / _ \| / __|
+ | |  | (_| | |\ V  V / (_) | |  | | (_| |____) | (_| |\ V /  __/ | (_) | (_) | \__ \
+ |_|   \__,_|_| \_/\_/ \___/|_|  |_|\__,_|_____/ \__,_| \_/ \___|_|\___/ \___/|_|___/
     """
     print(text)
     print(f"{center_text(f'{GREEN_FONT}v{tools_version} - Working as of v{game_version} Patch{RESET_FONT}')}")
@@ -64,7 +65,7 @@ def display_menu(tools_version, game_version):
     print("=" * 85)
     for i, tool in enumerate(cleaning_tools, len(converting_tools) + len(management_tools) + 1): print(f"{YELLOW_FONT}{i}{RESET_FONT}. {tool}")
     print("=" * 85)
-    text = f"{PURPLE_FONT}PalWorldSaveTools{RESET_FONT}"
+    text = f"{PURPLE_FONT}PalworldSaveTools{RESET_FONT}"
     print(center_text(text))
     print("=" * 85)
     for i, tool in enumerate(pws_tools, len(converting_tools) + len(management_tools) + len(cleaning_tools) + 1): print(f"{PURPLE_FONT}{i}{RESET_FONT}. {tool}")
@@ -98,8 +99,8 @@ def run_tool(choice):
 def scan_save():
     for file in ["scan_save.log", "players.log", "sort_players.log"]: Path(file).unlink(missing_ok=True)
     if Path("Pal Logger").exists(): subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
-    if Path("PalWorldSave/Level.sav").exists(): subprocess.run([sys.executable, os.path.join("Assets", "scan_save.py"), "PalWorldSave/Level.sav"])
-    else: print(f"{RED_FONT}Error: PalWorldSave/Level.sav not found!{RESET_FONT}")
+    if Path("PalworldSave/Level.sav").exists(): subprocess.run([sys.executable, os.path.join("Assets", "scan_save.py"), "PalworldSave/Level.sav"])
+    else: print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
 def generate_map():
     subprocess.run([sys.executable, "-m", "Assets.bases"])
     if Path("updated_worldmap.png").exists():
@@ -107,8 +108,8 @@ def generate_map():
         subprocess.run(["start", "updated_worldmap.png"], shell=True)
     else: print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
 def reset_update_tools():
-    repo_url = "https://github.com/deafdudecomputers/PalWorldSaveTools.git"
-    print(f"{GREEN_FONT}Resetting/Updating PalWorldSaveTools...{RESET_FONT}")
+    repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
+    print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
     subprocess.run([sys.executable, "-m", "ensurepip", "--upgrade"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "init"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "remove", "origin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -124,7 +125,7 @@ def reset_update_tools():
     os.execv(original_executable, [original_executable] + sys.argv)
 def about_tools():
     display_logo()
-    print("PalWorldSaveTools, all in one tool for fixing/transferring/editing/etc PalWorld saves.")
+    print("PalworldSaveTools, all in one tool for fixing/transferring/editing/etc Palworld saves.")
     print("Author: MagicBear and cheahjs")
     print("License: MIT License")
     print("Updated by: Pylar and Techdude")
@@ -134,11 +135,11 @@ def about_tools():
     print("Contact me on Discord: Pylar1991")
 def usage_tools():
     display_logo()
-    print("Some options may require you to use PalWorldSave folder, so place your saves in that folder.")
+    print("Some options may require you to use PalworldSave folder, so place your saves in that folder.")
     print("If you encounter some errors, make sure to run Scan Save first.")
     print("Then repeat the previous option to see if it fixes the previous error.")
     print("If everything else fails, you may contact me on Discord: Pylar1991")
-    print("Or raise an issue on my github: https://github.com/deafdudecomputers/PalWorldSaveTools")
+    print("Or raise an issue on my github: https://github.com/deafdudecomputers/PalworldSaveTools")
 def readme_tools():
     display_logo()
     readme_path = Path("README.md")
@@ -167,15 +168,15 @@ cleaning_tools = [
     "Generate PalDefender killnearestbase commands"
 ]
 pws_tools = [
-    "Reset/Update PalWorldSaveTools",
-    "About PalWorldSaveTools",
-    "PalWorldSaveTools Usage",
-    "PalWorldSaveTools Readme",
+    "Reset/Update PalworldSaveTools",
+    "About PalworldSaveTools",
+    "PalworldSaveTools Usage",
+    "PalworldSaveTools Readme",
     "Exit"
 ]
 if __name__ == "__main__":
     tools_version, game_version = get_versions()
-    set_console_title(f"PalWorldSaveTools v{tools_version}")
+    set_console_title(f"PalworldSaveTools v{tools_version}")
     setup_environment()
     os.system('cls' if os.name == 'nt' else 'clear')
     if len(sys.argv) > 1:
@@ -183,13 +184,13 @@ if __name__ == "__main__":
             choice = int(sys.argv[1])
             run_tool(choice)
             tools_version, game_version = get_versions()
-            set_console_title(f"PalWorldSaveTools v{tools_version}")
+            set_console_title(f"PalworldSaveTools v{tools_version}")
         except ValueError:
             print(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}")
     else:
         while True:
             tools_version, game_version = get_versions()
-            set_console_title(f"PalWorldSaveTools v{tools_version}")
+            set_console_title(f"PalworldSaveTools v{tools_version}")
             display_menu(tools_version, game_version)
             try:
                 choice = int(input(f"{GREEN_FONT}Select what you want to do: {RESET_FONT}"))
