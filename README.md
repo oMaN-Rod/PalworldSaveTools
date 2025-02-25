@@ -1,10 +1,9 @@
 ```
-  ______     _ _    _            _     _ _____               _____           _     
-  | ___ \   | | |  | |          | |   | /  ___|             |_   _|         | |    
-  | |_/ /_ _| | |  | | ___  _ __| | __| \ `--.  __ ___   _____| | ___   ___ | |___ 
-  |  __/ _` | | |/\| |/ _ \| '__| |/ _` |`--. \/ _` \ \ / / _ \ |/ _ \ / _ \| / __|
-  | | | (_| | \  /\  / (_) | |  | | (_| /\__/ / (_| |\ V /  __/ | (_) | (_) | \__ \
-  \_|  \__,_|_|\/  \/ \___/|_|  |_|\__,_\____/ \__,_| \_/ \___\_/\___/ \___/|_|___/
+  ___      _                _    _ ___              _____         _    
+ | _ \__ _| |_ __ _____ _ _| |__| / __| __ ___ ____|_   _|__  ___| |___
+ |  _/ _` | \ V  V / _ \ '_| / _` \__ \/ _` \ V / -_)| |/ _ \/ _ \ (_-<
+ |_| \__,_|_|\_/\_/\___/_| |_\__,_|___/\__,_|\_/\___||_|\___/\___/_/__/
+
 ```
 ---
 - **Contact me on Discord:** Pylar1991
@@ -55,11 +54,11 @@ Follow these steps to delete inactive players based on your criteria (e.g., inac
 	\Pal\Saved\SaveGames\0\RANDOMSERVERID\
 	``` 
 
-   to the (`PalWorldSave`) folder. 
+   to the (`PalworldSave`) folder. 
 2. Select Scan Save.
 3. Select Delete Inactive Players Saves.
 4. Input your desired requirements, then let it finish.  
-5. Copy the `Players` folder from the `PalWorldSave` folder.  
+5. Copy the `Players` folder from the `PalworldSave` folder.  
 6. Delete the original `Players` folder from the server:
 
 	```
