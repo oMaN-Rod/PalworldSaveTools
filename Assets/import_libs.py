@@ -3,7 +3,7 @@ import logging, multiprocessing, platform, pprint, re, subprocess, tarfile, thre
 import time, traceback, uuid, io, pathlib, tkinter as tk, tkinter.font, csv, urllib.request, tempfile, random, pandas as pd, msgpack
 import matplotlib.pyplot as plt, matplotlib.patches as patches, matplotlib.font_manager as font_manager, matplotlib.patheffects as path_effects
 from multiprocessing import shared_memory
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, PhotoImage
 from PIL import Image, ImageDraw, ImageOps, ImageFont
 from palworld_save_tools.archive import *
 from palworld_save_tools.palsav import *
