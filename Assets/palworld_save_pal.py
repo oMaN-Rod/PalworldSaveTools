@@ -21,7 +21,7 @@ def get_release_assets(repo_owner, repo_name, version):
         assets = release_data['assets']
         for asset in assets:
             print(f"Found asset: {asset['name']}")
-            if "psp-windows" in asset['name'] and asset['name'].endswith('.zip'):
+            if "windows-standalone" in asset['name'] and asset['name'].endswith('.zip'):
                 return asset['browser_download_url']
         print("No matching assets found.")
         return None
@@ -59,7 +59,7 @@ def main():
             print("Downloading Palworld Save Pal...")
             zip_file = download_from_github(repo_owner, repo_name, version, ".")
             if zip_file:
-                extract_zip(".", "psp-windows", "psp_windows")
+                extract_zip(".", "windows-standalone", "psp_windows")
                 os.remove(zip_file)
                 print(f"Removed downloaded file: {zip_file}")
             if os.path.exists(file_path):

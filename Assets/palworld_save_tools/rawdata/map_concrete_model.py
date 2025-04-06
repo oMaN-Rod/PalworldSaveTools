@@ -366,6 +366,11 @@ MAP_OBJECT_NAME_TO_CONCRETE_MODEL_CLASS: dict[str, str] = {
     "basecampitemdispenser": "PalMapObjectBaseCampItemDispenserModel",
     "farm_skillfruits": "PalMapObjectFarmSkillFruitsModel",
     "expedition": "PalMapObjectCharacterTeamMissionModel",
+    "oilpump": "PalMapObjectProductItemModel",
+    "compositedesk": "PalMapObjectConvertItemModel",
+    "glass_doorwall": "PalMapObjectDoorModel",
+    "zaisu": "PalMapObjectPlayerSitModel",
+    "dimensionpalstorage": "PalMapObjectDimensionPalStorageModel",
 }
 NO_OP_TYPES = set(
     [
@@ -394,6 +399,7 @@ NO_OP_TYPES = set(
         "BlueprintGeneratedClass",
         "PalMapObjectGuildChestModel",
         "PalMapObjectBaseCampItemDispenserModel",
+        "PalMapObjectPlayerSitModel",
     ]
 )
 
@@ -407,7 +413,7 @@ def decode_bytes(
     data: dict[str, Any] = {}
 
     if object_id.lower() not in MAP_OBJECT_NAME_TO_CONCRETE_MODEL_CLASS:
-        #print(f"Warning: Map object '{object_id}' not in database, skipping")
+        print(f"Warning: Map object '{object_id}' not in database, skipping")
         return {"values": m_bytes}
 
     # Base handling
@@ -421,7 +427,6 @@ def decode_bytes(
         object_id.lower()
     ]
     data["concrete_model_type"] = map_object_concrete_model
-
     match map_object_concrete_model:
         case model if model in NO_OP_TYPES:
             pass
@@ -530,7 +535,9 @@ def decode_bytes(
             if not reader.eof():
                 data["unknown_bytes"] = [int(b) for b in reader.read_to_end()]
         case _:
-            #print(f"Warning: Unknown map object concrete model {map_object_concrete_model}, skipping")
+            print(
+                f"Warning: Unknown map object concrete model {map_object_concrete_model}, skipping"
+            )
             return {"values": m_bytes}
 
     if not reader.eof():
@@ -602,6 +609,8 @@ def encode_bytes(p: Optional[dict[str, Any]]) -> bytes:
             writer.guid(p["item_id"]["dynamic_id"]["local_id_in_created_world"])
         case "PalMapObjectItemDropOnDamagModel":
             writer.tarray(pal_item_and_slot_writer, p["drop_item_infos"])
+            if "unknown_bytes" in p:
+                writer.write(bytes(p["unknown_bytes"]))
         case "PalMapObjectDeathPenaltyStorageModel":
             writer.guid(p["owner_player_uid"])
             if "created_at" in p:
@@ -646,8 +655,8 @@ def encode_bytes(p: Optional[dict[str, Any]]) -> bytes:
         case "PalMapObjectBaseCampPoint":
             writer.guid(p["base_camp_id"])
         case "PalMapObjectItemChest_AffectCorruption" | "PalMapObjectItemChestModel":
-            if "unknown_data" in p:
-                writer.write(bytes(p["unknown_data"]))
+            if "unknown_bytes" in p:
+                writer.write(bytes(p["unknown_bytes"]))
         case _:
             raise Exception(
                 f"Unknown map object concrete model {map_object_concrete_model}"
