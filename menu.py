@@ -26,7 +26,7 @@ def setup_environment():
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
     tools_version = "1.0.30"
-    game_version = "0.5.1"
+    game_version = "0.5.2"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
 def center_text(text):
