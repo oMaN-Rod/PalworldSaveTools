@@ -149,7 +149,8 @@ def LoadFile(filename):
         print("Done in %.2fs." % (time.time() - start_time))
         print(f"Parsing {filename}...", end="", flush=True)
         start_time = time.time()
-        gvas_file = ProgressGvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES)
+        #gvas_file = ProgressGvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES)
+        gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
         print("Done in %.2fs." % (time.time() - start_time))
         print("\n")
     wsd = gvas_file.properties['worldSaveData']['value']
