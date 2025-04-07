@@ -43,67 +43,6 @@ delete_files = []
 loadingStatistics = {}
 MappingCache: MappingCacheObject = None
 loadingTitle = ""
-class skip_loading_progress(threading.Thread):
-    def __init__(self, reader, size):
-        super().__init__()
-        self.reader = reader
-        self.size = size
-    def run(self) -> None:
-        try:
-            while not self.reader.progress_eof():
-                if sys.platform in ['linux', 'darwin']:
-                    print("\033]0;%s - %3.1f%%\a" % (loadingTitle, 100 * self.reader.progress() / self.size), end="",
-                          flush=True)
-                print("%3.0f%%" % (100 * self.reader.progress() / self.size), end="\b\b\b\b", flush=True)
-                if gui is not None:
-                    gui.set_progress(100 * self.reader.progress() / self.size)
-        except ValueError:
-            pass
-        if gui is not None:
-            gui.set_progress(100)
-class ProgressGvasFile(GvasFile):
-    @staticmethod
-    def read(
-            data: bytes,
-            type_hints: dict[str, str] = {},
-            custom_properties: dict[str, tuple[Callable, Callable]] = {},
-            allow_nan: bool = True,
-    ) -> "ProgressGvasFile":
-        gvas_file = GvasFile()
-        with FProgressArchiveReader(
-                data,
-                type_hints=type_hints,
-                custom_properties=custom_properties,
-                allow_nan=allow_nan,
-                reduce_memory=getattr(args, "reduce_memory", False),
-                check_err=getattr(args, "check_file", False),
-        ) as reader:
-            skip_loading_progress(reader, len(data)).start()
-            gvas_file.header = GvasHeader.read(reader)
-            gvas_file.properties = reader.properties_until_end()
-            gvas_file.trailer = reader.read_to_end()
-            if gvas_file.trailer != b"\x00\x00\x00\x00":
-                print(f"{len(gvas_file.trailer)} bytes of trailer data, file may not have fully parsed")
-        return gvas_file
-def parse_item(properties, skip_path):
-    if isinstance(properties, dict):
-        if 'skip_type' in properties:
-            properties_parsed = parse_skiped_item(properties, skip_path, None, True)
-            for k in properties_parsed:
-                properties[k] = properties_parsed[k]
-        else:
-            for key in properties:
-                call_skip_path = skip_path + "." + key[0].upper() + key[1:]
-                properties[key] = parse_item(properties[key], call_skip_path)
-    elif isinstance(properties, list):
-        top_skip_path = ".".join(skip_path.split(".")[:-1])
-        for idx, item in enumerate(properties):
-            properties[idx] = parse_item(item, top_skip_path)
-    return properties
-def load_skipped_decode(_worldSaveData, skip_paths, recursive=True):
-    BatchParseItem(_worldSaveData, skip_paths, recursive=recursive,
-                   progress=lambda reader, size: skip_loading_progress(reader, size).start(),
-                   use_mp=not getattr(args, "reduce_memory", False))
 def main_editor():
     print(f"Now starting the tool...")
     global output_file, output_path, args, gui, playerMapping
@@ -149,7 +88,6 @@ def LoadFile(filename):
         print("Done in %.2fs." % (time.time() - start_time))
         print(f"Parsing {filename}...", end="", flush=True)
         start_time = time.time()
-        #gvas_file = ProgressGvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES)
         gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
         print("Done in %.2fs." % (time.time() - start_time))
         print("\n")
@@ -321,7 +259,7 @@ def ShowPlayers():
                 with open(sav_file, "rb") as file:
                     data = file.read()
                     raw_gvas, save_type = decompress_sav_to_gvas(data)
-                gvas_file = ProgressGvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES)
+                gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
                 json_data = json.loads(json.dumps(gvas_file.dump(), cls=CustomEncoder))
                 pal_capture_count_list = json_data.get('properties', {}).get('SaveData', {}).get('value', {}).get('RecordData', {}).get('value', {}).get('PalCaptureCount', {}).get('value', [])
                 unique_captured = len(pal_capture_count_list) if pal_capture_count_list else 0
