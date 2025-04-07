@@ -26,7 +26,7 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.32"
+    tools_version = "1.0.33"
     game_version = "0.5.2"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -108,18 +108,16 @@ def generate_map():
     else: print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
-    print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
+    print(f"{GREEN_FONT}Updating PalworldSaveTools safely...{RESET_FONT}")
     subprocess.run([sys.executable, "-m", "ensurepip", "--upgrade"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "init"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "remove", "origin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "add", "origin", repo_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"{GREEN_FONT}Replacing all files in the current directory with the latest from GitHub...{RESET_FONT}")
     subprocess.run(["git", "fetch", "--all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "reset", "--hard", "origin/main"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if os.name == 'nt': subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else: subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
+    print(f"{GREEN_FONT}Update complete. Files replaced safely without nuking your custom files.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
     os.execv(original_executable, [original_executable] + sys.argv)
 def about_tools():
