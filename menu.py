@@ -126,8 +126,7 @@ def reset_update_tools():
     else:
         subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     choice = input(f"{GREEN_FONT}Do you want a FULL reset? This will delete ALL untracked files. (y/n): {RESET_FONT}").strip().lower()
-    if choice == "y":
-        subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if choice == "y": subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for root, dirs, _ in os.walk(".", topdown=False):
         for d in dirs:
             if d == "__pycache__":
