@@ -45,7 +45,10 @@ def parse_log(inactivity_days=None, max_level=None):
         inactive_guilds[guild_id]["bases"].extend(bases)
         guild_count += 1
         base_count += len(bases)
-        kill_commands.extend([f"killnearestbase {raw_data.replace(',', '')}" for _, raw_data in bases])
+        for _, raw_data in bases:
+            base_coords_str = raw_data.replace(',', '').split()
+            base_coords = sav_to_map(float(base_coords_str[0]), float(base_coords_str[1]))
+            kill_commands.append(f"killnearestbase {base_coords.x} {base_coords.y} {round(float(base_coords_str[2]), 2)}")
     for guild_id, guild_info in inactive_guilds.items():
         print(f"Guild: {guild_info['guild_name']} | Guild Leader: {guild_info['guild_leader']} | Guild ID: {guild_id}")
         print(f"Guild Players: {len(guild_info['players'])}")
