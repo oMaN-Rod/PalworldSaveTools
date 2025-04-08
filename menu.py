@@ -109,6 +109,8 @@ def generate_map():
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
     print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
+    choice = input(f"{GREEN_FONT}Do you want a FULL reset? This will delete ALL untracked files. (y/n): {RESET_FONT}").strip().lower()
+    if choice == "y": subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run([sys.executable, "-m", "ensurepip", "--upgrade"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "init"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "remove", "origin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -125,8 +127,6 @@ def reset_update_tools():
         subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run(["rm", "-rf", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    choice = input(f"{GREEN_FONT}Do you want a FULL reset? This will delete ALL untracked files. (y/n): {RESET_FONT}").strip().lower()
-    if choice == "y": subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for root, dirs, _ in os.walk(".", topdown=False):
         for d in dirs:
             if d == "__pycache__":
