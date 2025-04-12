@@ -4,15 +4,25 @@ def parse_log(inactivity_days=None, max_level=None):
     print()
     print("-" * 40)
     log_file = "scan_save.log"
-    if not os.path.exists(log_file): return print(f"Log file '{log_file}' not found in the current directory.")
-    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f: content = f.read()
-    guilds, threshold_time, inactive_guilds, kill_commands = content.split("\n\n"), None, {}, []
+    if not os.path.exists(log_file):
+        return print(f"Log file '{log_file}' not found in the current directory.")    
+    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+        content = f.read()    
+    guilds = content.split("\n\n")
+    threshold_time = None
+    inactive_guilds = {}
+    kill_commands = []
     guild_count = base_count = 0
-    if inactivity_days: threshold_time = datetime.now() - timedelta(days=inactivity_days)
+    if inactivity_days:
+        threshold_time = datetime.now() - timedelta(days=inactivity_days)
     for guild in guilds:
-        players_data = re.findall(r"Player: (.+?) \| UID: ([a-f0-9-]+) \| Level: (\d+) \| Caught: (\d+) \| Owned: (\d+) \| Encounters: (\d+) \| Uniques: (\d+) \| Last Online: (.+? \(\d+d?:?\d*h?:?\d*m?:?\d*s? ago\))", guild)
+        players_data = re.findall(
+            r"Player: (.+?) \| UID: ([a-f0-9-]+) \| Level: (\d+) \| Caught: (\d+) \| Owned: (\d+) \| Encounters: (\d+) \| Uniques: (\d+) \| Last Online: (.+? \(\d+d?:?\d*h?:?\d*m?:?\d*s? ago\))",
+            guild
+        )
         bases = re.findall(r"Base \d+: Base ID: ([a-f0-9-]+) \| Old: .+? \| New: .+? \| RawData: (.+)", guild)
-        if not players_data or not bases: continue
+        if not players_data or not bases:
+            continue
         guild_name = re.search(r"Guild: (.+?) \|", guild)
         guild_leader = re.search(r"Guild Leader: (.+?) \|", guild)
         guild_id = re.search(r"Guild ID: ([a-f0-9-]+)", guild)
@@ -32,23 +42,40 @@ def parse_log(inactivity_days=None, max_level=None):
                     if days_inactive < inactivity_days:
                         valid_guild = False
                         break
-            if not valid_guild: continue
+            if not valid_guild:
+                continue
         if max_level:
-            if any(int(player[2]) > max_level for player in players_data): continue
+            if any(int(player[2]) > max_level for player in players_data):
+                continue
         if guild_id not in inactive_guilds:
-            inactive_guilds[guild_id] = {"guild_name": guild_name, "guild_leader": guild_leader, "players": [], "bases": []}
+            inactive_guilds[guild_id] = {
+                "guild_name": guild_name,
+                "guild_leader": guild_leader,
+                "players": [],
+                "bases": []
+            }
         for player in players_data:
             inactive_guilds[guild_id]["players"].append({
-                "name": player[0], "uid": player[1], "level": player[2], "caught": player[3], "owned": player[4],
-                "encounters": player[5], "uniques": player[6], "last_online": f"{player[7]}"
+                "name": player[0],
+                "uid": player[1],
+                "level": player[2],
+                "caught": player[3],
+                "owned": player[4],
+                "encounters": player[5],
+                "uniques": player[6],
+                "last_online": player[7]
             })
         inactive_guilds[guild_id]["bases"].extend(bases)
         guild_count += 1
         base_count += len(bases)
         for _, raw_data in bases:
             base_coords_str = raw_data.replace(',', '').split()
-            base_coords = sav_to_map(float(base_coords_str[0]), float(base_coords_str[1]))
-            kill_commands.append(f"killnearestbase {base_coords.x} {base_coords.y} {round(float(base_coords_str[2]), 2)}")
+            if len(base_coords_str) >= 3:
+                x, y, z = float(base_coords_str[0]), float(base_coords_str[1]), float(base_coords_str[2])
+                base_coords = sav_to_map(x, y)
+                kill_commands.append(
+                    f"killnearestbase {base_coords.x:.2f} {base_coords.y:.2f} {z:.2f}"
+                )
     for guild_id, guild_info in inactive_guilds.items():
         print(f"Guild: {guild_info['guild_name']} | Guild Leader: {guild_info['guild_leader']} | Guild ID: {guild_id}")
         print(f"Guild Players: {len(guild_info['players'])}")
@@ -60,11 +87,15 @@ def parse_log(inactivity_days=None, max_level=None):
         print("-" * 40)
     print(f"\nFound {guild_count} guild(s) with {base_count} base(s).")
     if kill_commands:
-        with open("paldefender_bases.log", "w", encoding='utf-8') as log_file: log_file.write("\n".join(kill_commands))
+        with open("paldefender_bases.log", "w", encoding='utf-8') as log_file:
+            log_file.write("\n".join(kill_commands))
         print(f"Successfully wrote {len(kill_commands)} kill commands to paldefender_bases.log.")
-    else: print("No kill commands were generated.")
-    if inactivity_days: print(f"Inactivity filter applied: >= {inactivity_days} day(s).")
-    if max_level: print(f"Player level filter applied: <= {max_level} level(s).")
+    else:
+        print("No kill commands were generated.")
+    if inactivity_days:
+        print(f"Inactivity filter applied: >= {inactivity_days} day(s).")
+    if max_level:
+        print(f"Player level filter applied: <= {max_level} level(s).")
     if guild_count > 0:
         with open("paldefender_bases_info.log", "w", encoding='utf-8') as info_log:
             info_log.write("-" * 40 + "\n")
@@ -75,7 +106,13 @@ def parse_log(inactivity_days=None, max_level=None):
                     info_log.write(f"  Player: {player['name']} | UID: {player['uid']} | Level: {player['level']} | Caught: {player['caught']} | Owned: {player['owned']} | Encounters: {player['encounters']} | Uniques: {player['uniques']} | Last Online: {player['last_online']}\n")
                 info_log.write(f"Base Locations: {len(guild_info['bases'])}\n")
                 for base_id, raw_data in guild_info["bases"]:
-                    info_log.write(f"  Base ID: {base_id} | RawData: {raw_data}\n")
+                    base_coords_str = raw_data.replace(',', '').split()
+                    if len(base_coords_str) >= 3:
+                        x, y, z = float(base_coords_str[0]), float(base_coords_str[1]), float(base_coords_str[2])
+                        map_coords = sav_to_map(x, y)
+                        info_log.write(f"  Base ID: {base_id} | Map Coords: X: {map_coords.x:.2f}, Y: {map_coords.y:.2f}, Z: {z:.2f}\n")
+                    else:
+                        info_log.write(f"  Base ID: {base_id} | Invalid RawData: {raw_data}\n")
                 info_log.write("-" * 40 + "\n")
             info_log.write(f"Found {guild_count} guild(s) with {base_count} base(s).\n")
             info_log.write("-" * 40)

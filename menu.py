@@ -26,8 +26,8 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.34"
-    game_version = "0.5.2"
+    tools_version = "1.0.35"
+    game_version = "0.5.3"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
 def center_text(text):
