@@ -35,7 +35,7 @@
 - Logs and sorts players by the number of pals owned.  
 - Deletes players with fewer than a specified number of pals.   
 - Provides a **base map view**.
-- Provides automated killnearestbase commands to be used with palguard for inactive bases.
+- Provides automated killnearestbase commands to be used with PalDefender for inactive bases.
 - Transfers saves between dedicated servers and single/coop worlds.  
 - Includes Steam ID conversion.
 - Includes coords conversion.  
