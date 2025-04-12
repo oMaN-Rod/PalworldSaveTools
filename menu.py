@@ -117,6 +117,7 @@ def reset_update_tools():
     choice = input(f"{GREEN_FONT}Do you want a FULL reset? This will delete ALL untracked files. (y/n): {RESET_FONT}").strip().lower()
     if choice == "y":
         subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"{GREEN_FONT}PalworldSaveTools reset completed successfully.{RESET_FONT}")
     subprocess.run(["git", "reset", "--hard", "origin/main"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if os.path.exists("venv"):
         if os.name == 'nt':
