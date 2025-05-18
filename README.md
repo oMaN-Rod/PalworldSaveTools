@@ -284,8 +284,9 @@ SaveGames
 
 # Known bugs/issues:
 
-1. Hostile pals after using character transfer:
-	- Can be solved by putting them in your party, then dropping them on ground and picking them up afterwards. This reassigns the owner to you. 
+1. Hostile Pals After Character Transfer
+	- After performing a character transfer, some Pals may behave aggressively due to an outdated ownership assignment.
+	- Workaround: Add the affected Pal to your party, drop it on the ground, then pick it back up. This will reassign ownership to the current character.
 
 2. Bases get wiped when attempting to transfer from server to local:
-	- Cannot be solved by any means for time being due to v0.4.15 patch. 
+	- Status: No known fix at this time. This issue is caused by changes introduced in patch v0.4.15. 
