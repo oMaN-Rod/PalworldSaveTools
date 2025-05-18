@@ -282,7 +282,7 @@ SaveGames
 3. Paste the copied files into this folder.
 4. Start **Palworld**, join the server, and enjoy your character with all progress intact.
 
-#Known bugs/issues:
+# Known bugs/issues:
 
 1. Hostile pals after using character transfer:
 	- Can be solved by putting them in your party, then dropping them on ground and picking them up afterwards. This reassigns the owner to you. 
