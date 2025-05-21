@@ -41,6 +41,7 @@
 - Includes coords conversion.  
 - Includes GamePass ⇔ Steam conversion.
 - Slot injector, a simple tool to increase slots each player can have on world/server. Works with Bigger PalBox mod.
+- Automated backup between tool usages.
 
 ---
 
