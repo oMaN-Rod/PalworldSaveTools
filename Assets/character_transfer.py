@@ -188,7 +188,7 @@ of your save folder before continuing. Press Yes if you would like to continue.'
     targ_json_gvas = load_player_file(t_level_sav_path, selected_target_player)
     if targ_json_gvas is None: return
     targ_json = targ_json_gvas.properties
-    host_guid = UUID.from_str(selected_source_player).raw_bytes
+    host_guid = UUID.from_str(selected_source_player)
     host_instance_id = host_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
     pal_player_uid_filters = [b'\x00'*16, b'\x00'*12 + b'\x01\x00\x00\x00'] 
     count = 0
@@ -311,73 +311,81 @@ of your save folder before continuing. Press Yes if you would like to continue.'
     if not keep_old_guild_id:
         for group_data in targ_lvl["GroupSaveDataMap"]["value"]:
             if group_data["value"]["GroupType"]["value"]["value"] == "EPalGroupType::Guild":
-                players_list = group_data.get("value", {}).get("RawData", {}).get("value", {})
-                players_list = players_list.get("players", []) if isinstance(players_list, dict) else []
+                raw_data = group_data.get("value", {}).get("RawData", {}).get("value", {})
+                players_list = raw_data.get("players", []) if isinstance(raw_data, dict) else []
                 if targ_uid in [p['player_uid'] for p in players_list]:
-                    group_id = group_data["value"]["RawData"]["value"]['group_id']
-                    guild_items_json = group_data["value"]["RawData"]["value"]["individual_character_handle_ids"]
+                    group_id = raw_data.get('group_id')
+                    guild_items_json = raw_data.get("individual_character_handle_ids", [])
                     break
         if group_id is None:
-            messagebox.showerror(message='Guild ID not found, aboorting')
+            messagebox.showerror(message='Guild ID not found, aborting')
             return
-        guild_item_instances = set()
-        for guild_item in guild_items_json:
-            guild_item_instances.add(guild_item['instance_id'])
+        guild_item_instances = {guild_item['instance_id'] for guild_item in guild_items_json}
     else:
         for group_idx, group_data in enumerate(targ_lvl["GroupSaveDataMap"]["value"]):
             if group_data["value"]["GroupType"]["value"]["value"] == "EPalGroupType::Guild" and group_data["key"] not in source_guild_dict:
+                players = group_data["value"]["RawData"]["value"].get("players", [])
                 new_character_guild_found = False
-                for player_idx, player_item in enumerate(group_data["value"]["RawData"]["value"]["players"]):
+                for player_idx, player_item in enumerate(players):
                     if player_item['player_uid'] == targ_uid:
                         new_character_guild_found = True
                         break
                 if new_character_guild_found:
-                    group_data["value"]["RawData"]["value"]["players"].pop(player_idx)
-                    if len(group_data["value"]["RawData"]["value"]["players"]) > 0: 
-                        if group_data["value"]["RawData"]["value"]["admin_player_uid"] == targ_uid:
-                            group_data["value"]["RawData"]["value"]["admin_player_uid"] = group_data["value"]["RawData"]["value"]["players"][0]['player_uid']
-                        for handle_idx, character_handle_id in enumerate(group_data["value"]["RawData"]["value"]["individual_character_handle_ids"]):
+                    players.pop(player_idx)
+                    if players:
+                        raw_data = group_data["value"]["RawData"]["value"]
+                        if raw_data.get("admin_player_uid") == targ_uid:
+                            raw_data["admin_player_uid"] = players[0]['player_uid']
+                        individual_ids = raw_data.get("individual_character_handle_ids", [])
+                        for handle_idx, character_handle_id in enumerate(individual_ids):
                             if character_handle_id['guid'] == targ_uid:
-                                group_data["value"]["RawData"]["value"]["individual_character_handle_ids"].pop(handle_idx)
+                                individual_ids.pop(handle_idx)
+                                break
                     else:
                         targ_lvl["GroupSaveDataMap"]["value"].pop(group_idx)
                     break
         for group_data in targ_lvl["GroupSaveDataMap"]["value"]:
             if group_data["key"] in source_guild_dict:
+                players = group_data["value"]["RawData"]["value"].get("players", [])
                 old_player_found = False
-                for player_item in group_data["value"]["RawData"]["value"]["players"]:
+                for player_item in players:
                     if player_item['player_uid'] == host_guid:
                         old_player_found = True
                         player_item['player_uid'] = targ_uid
                         break
                 if old_player_found:
-                    for character_handle_id in group_data["value"]["RawData"]["value"]["individual_character_handle_ids"]:
+                    raw_data = group_data["value"]["RawData"]["value"]
+                    for character_handle_id in raw_data.get("individual_character_handle_ids", []):
                         if character_handle_id['guid'] == host_guid:
                             character_handle_id['guid'] = targ_uid
                             character_handle_id['instance_id'] = char_instanceid
                             break
-                    if group_data["value"]["RawData"]["value"]["admin_player_uid"] == host_guid:
-                        group_data["value"]["RawData"]["value"]["admin_player_uid"] = targ_uid
+                    if raw_data.get("admin_player_uid") == host_guid:
+                        raw_data["admin_player_uid"] = targ_uid
                     group_id = group_data["key"]
                     break
         if group_id is None:
             old_guild = None
             for group_data in source_guild_dict.values():
-                for player_item in group_data["value"]["RawData"]["value"]["players"]:
+                players = group_data["value"]["RawData"]["value"].get("players", [])
+                for player_item in players:
                     if player_item['player_uid'] == host_guid:
                         old_guild = fast_deepcopy(group_data)
                         break
+                if old_guild:
+                    break
             if old_guild is None:
                 messagebox.showerror(message="No guild containing the source player is found in the source either, either this is a bug or the files are corrupted. Aborting.")
                 return
             group_id = old_guild["key"]
-            if old_guild["value"]["RawData"]["value"]["admin_player_uid"] == host_guid:
-                old_guild["value"]["RawData"]["value"]["admin_player_uid"] = targ_uid
-            for player_item in old_guild["value"]["RawData"]["value"]["players"]:
+            raw_data = old_guild["value"]["RawData"]["value"]
+            if raw_data.get("admin_player_uid") == host_guid:
+                raw_data["admin_player_uid"] = targ_uid
+            for player_item in raw_data.get("players", []):
                 if player_item['player_uid'] == host_guid:
                     player_item['player_uid'] = targ_uid
                     break
-            for character_handle_id in old_guild["value"]["RawData"]["value"]["individual_character_handle_ids"]:
+            for character_handle_id in raw_data.get("individual_character_handle_ids", []):
                 if character_handle_id['guid'] == host_guid:
                     character_handle_id['guid'] = targ_uid
                     character_handle_id['instance_id'] = char_instanceid
