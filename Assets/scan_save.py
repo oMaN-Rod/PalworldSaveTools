@@ -375,7 +375,8 @@ def ShowPlayers():
     for group_id, group_data in list(srcGuildMapping.GuildSaveDataMap.items()):
         item = group_data['value']['RawData']['value']
         mapObjectMeta = {m_k: item[m_k] for m_k in item}
-        admin_uid = str(mapObjectMeta['admin_player_uid'])
+        guild_players_list = mapObjectMeta.get('players', [])
+        admin_uid = str(guild_players_list[0]['player_uid']) if guild_players_list else 'Unknown'
         guild_leader_name = playerMapping.get(admin_uid, {}).get('NickName', admin_uid)
         guild_players = [player for player in mapObjectMeta.get('players', []) if player['player_uid'] in playerMapping]
         if guild_players:
