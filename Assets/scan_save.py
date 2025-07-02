@@ -84,7 +84,7 @@ def LoadFile(filename):
     with open(filename, "rb") as f:
         start_time = time.time()
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data)
+        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
         print("Done in %.2fs." % (time.time() - start_time))
         print(f"Parsing {filename}...", end="", flush=True)
         start_time = time.time()
@@ -258,7 +258,7 @@ def ShowPlayers():
             try:
                 with open(sav_file, "rb") as file:
                     data = file.read()
-                    raw_gvas, save_type = decompress_sav_to_gvas(data)
+                    raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
                 gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
                 json_data = json.loads(json.dumps(gvas_file.dump(), cls=CustomEncoder))
                 pal_capture_count_list = json_data.get('properties', {}).get('SaveData', {}).get('value', {}).get('RecordData', {}).get('value', {}).get('PalCaptureCount', {}).get('value', [])

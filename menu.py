@@ -26,7 +26,7 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.37"
+    tools_version = "1.0.38"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns

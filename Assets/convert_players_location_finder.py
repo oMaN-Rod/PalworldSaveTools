@@ -20,5 +20,5 @@ def main():
                     convert_json_to_sav(path, output_path)
                 elif sys.argv[1] == "json" and file.endswith(".sav"): 
                     output_path = path.replace(".sav", ".json")
-                    convert_sav_to_json(path, output_path)
+                    convert_sav_to_json(path, output_path, oodle_path=oodle_path)
 if __name__ == "__main__": main()

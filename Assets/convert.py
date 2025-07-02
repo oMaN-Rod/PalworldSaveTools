@@ -37,20 +37,28 @@ def main():
         type=lambda t: [s.strip() for s in t.split(",")],
         help="Comma-separated list of custom properties to decode, or 'all' for all known properties. This can be used to speed up processing by excluding properties that are not of interest. (default: all)",
     )
+    parser.add_argument("--oodle-path", help="Use Oodle compression (default: false)")
+
     parser.add_argument("--minify-json", action="store_true", help="Minify JSON output")
+    parser.add_argument("--raw", action="store_true", help="Output raw GVAS file")
     args = parser.parse_args()
+
     if args.to_json and args.from_json:
         print("Cannot specify both --to-json and --from-json")
         exit(1)
+
     if not os.path.exists(args.filename):
         print(f"{args.filename} does not exist")
         exit(1)
     if not os.path.isfile(args.filename):
         print(f"{args.filename} is not a file")
         exit(1)
+
     if args.to_json or args.filename.endswith(".sav"):
-        if not args.output: output_path = args.filename + ".json"
-        else: output_path = args.output
+        if not args.output:
+            output_path = args.filename + ".json"
+        else:
+            output_path = args.output
         convert_sav_to_json(
             args.filename,
             output_path,
@@ -58,18 +66,28 @@ def main():
             minify=args.minify_json,
             allow_nan=(not args.convert_nan_to_null),
             custom_properties_keys=args.custom_properties,
+            raw=args.raw,
+            oodle_path=args.oodle_path,
         )
+
     if args.from_json or args.filename.endswith(".json"):
-        if not args.output: output_path = args.filename.replace(".json", "")
-        else: output_path = args.output
+        if not args.output:
+            output_path = args.filename.replace(".json", "")
+        else:
+            output_path = args.output
         convert_json_to_sav(args.filename, output_path, force=args.force)
+
+
 def convert_sav_to_json(
     filename,
     output_path,
     force=False,
     minify=False,
     allow_nan=True,
-    custom_properties_keys=["all"],):
+    custom_properties_keys=["all"],
+    raw=False,
+    oodle_path=None,
+):
     print(f"Converting {filename} to JSON, saving to {output_path}")
     if os.path.exists(output_path):
         print(f"{output_path} already exists, this will overwrite the file")
@@ -79,7 +97,12 @@ def convert_sav_to_json(
     print(f"Decompressing sav file")
     with open(filename, "rb") as f:
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data)
+        raw_gvas, _ = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+    if raw:
+        output_dir = os.path.dirname(output_path)
+        output_file_path = f"{output_dir}\\raw_gvas.sav" if raw else None
+        with open(output_file_path, "wb") as f:
+            f.write(raw_gvas)
     print(f"Loading GVAS file")
     custom_properties = {}
     if len(custom_properties_keys) > 0 and custom_properties_keys[0] == "all":
@@ -88,11 +111,17 @@ def convert_sav_to_json(
         for prop in PALWORLD_CUSTOM_PROPERTIES:
             if prop in custom_properties_keys:
                 custom_properties[prop] = PALWORLD_CUSTOM_PROPERTIES[prop]
-    gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, custom_properties, allow_nan=allow_nan)
+    gvas_file = GvasFile.read(
+        raw_gvas, PALWORLD_TYPE_HINTS, custom_properties, allow_nan=allow_nan
+    )
     print(f"Writing JSON to {output_path}")
     with open(output_path, "w", encoding="utf8") as f:
         indent = None if minify else "\t"
-        json.dump(gvas_file.dump(), f, indent=indent, cls=CustomEncoder, allow_nan=allow_nan)
+        json.dump(
+            gvas_file.dump(), f, indent=indent, cls=CustomEncoder, allow_nan=allow_nan
+        )
+
+
 def convert_json_to_sav(filename, output_path, force=False):
     print(f"Converting {filename} to SAV, saving to {output_path}")
     if os.path.exists(output_path):
@@ -101,7 +130,8 @@ def convert_json_to_sav(filename, output_path, force=False):
             if not confirm_prompt("Are you sure you want to continue?"):
                 exit(1)
     print(f"Loading JSON from {filename}")
-    with open(filename, "r", encoding="utf8") as f: data = json.load(f)
+    with open(filename, "r", encoding="utf8") as f:
+        data = json.load(f)
     gvas_file = GvasFile.load(data)
     print(f"Compressing SAV file")
     if (
@@ -109,13 +139,22 @@ def convert_json_to_sav(filename, output_path, force=False):
         or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name
     ):
         save_type = 0x32
-    else: save_type = 0x31
-    sav_file = compress_gvas_to_sav(gvas_file.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
+    else:
+        save_type = 0x31
+    sav_file = compress_gvas_to_sav(
+        gvas_file.write(PALWORLD_CUSTOM_PROPERTIES), save_type
+    )
     print(f"Writing SAV file to {output_path}")
-    with open(output_path, "wb") as f: f.write(sav_file)
+    with open(output_path, "wb") as f:
+        f.write(sav_file)
+
+
 def confirm_prompt(question: str) -> bool:
     reply = None
     while reply not in ("y", "n"):
         reply = input(f"{question} (y/n): ").casefold()
     return reply == "y"
-if __name__ == "__main__": main()
+
+
+if __name__ == "__main__":
+    main()
