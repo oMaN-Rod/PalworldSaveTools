@@ -8,7 +8,7 @@ def main():
     for level_file in level_files:
         if sys.argv[1] == "sav":
             output_path = level_file.replace(".json", ".sav")
-            convert_json_to_sav(level_file, output_path)
+            convert_json_to_sav(level_file, output_path, oodle_path=oodle_path)
         else:
             output_path = level_file.replace(".sav", ".json")
             convert_sav_to_json(level_file, output_path, oodle_path=oodle_path)
