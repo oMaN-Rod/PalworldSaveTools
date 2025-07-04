@@ -26,7 +26,7 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.42"
+    tools_version = "1.0.43"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -86,14 +86,13 @@ def run_tool(choice):
         12: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "character_transfer.py")]),
         13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
         14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
-        15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_inactive_players.py"), "players.log"]),
-        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_pals_save.py"), "players.log"]),
-        17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
-        18: reset_update_tools,
-        19: about_tools,
-        20: usage_tools,
-        21: readme_tools,
-        22: sys.exit
+        15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_players_guilds.py")]),  # updated
+        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
+        17: reset_update_tools,
+        18: about_tools,
+        19: usage_tools,
+        20: readme_tools,
+        21: sys.exit
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
 def scan_save():
@@ -177,8 +176,7 @@ management_tools = [
     "Restore Map"
 ]
 cleaning_tools = [
-    "Delete Inactive Players Saves",
-    "Delete Saves by Pals Count",
+    "Delete Players and Guilds",
     "Generate PalDefender killnearestbase commands"
 ]
 pws_tools = [
