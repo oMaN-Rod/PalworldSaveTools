@@ -5,10 +5,7 @@ import shutil
 import sys
 import uuid
 from sys import exit
-
 from container_types import ContainerIndex, NotSupportedError, ContainerFile, ContainerFileList, FILETIME, Container
-
-
 def add_container(container_index: ContainerIndex, source_save_path: str, save_filename: str, container_name: str,
                   container_path: str):
     try:
@@ -38,17 +35,13 @@ def add_container(container_index: ContainerIndex, source_save_path: str, save_f
     os.makedirs(container_content_path, exist_ok=True)
     container_file_list.write_container(container_content_path)
     print(f"Wrote new container to {container_content_path}")
-
 def main():
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <save_folder>")
         os.system("pause")
         exit(1)
-
-    print("========== Palworld Save File Importer v0.0.1 ==========")
     print("WARNING: This tool is experimental. Always manually back up your existing saves!")
     print()
-
     package_path = os.path.expandvars(r"%LOCALAPPDATA%\Packages\PocketpairInc.Palworld_ad4psfrxyesvt")
     if not os.path.exists(package_path):
         print("Error: Could not find the package path. Make sure you have Xbox Palworld installed.")
@@ -66,7 +59,6 @@ def main():
         os.system("pause")
         exit(2)
     print(f"Found container path: {container_path}")
-
     container_index_path = os.path.join(container_path, "containers.index")
     container_index_file = open(container_index_path, "rb")
     try:
@@ -88,7 +80,6 @@ def main():
                 for file in file_list.files:
                     print(f"      {file.name}")
     print()
-
     source_save_path = os.path.normpath(sys.argv[1])
     if not os.path.exists(source_save_path):
         print(f"Error: Source save path does not exist: {source_save_path}")
@@ -104,7 +95,6 @@ def main():
     print("Save file:")
     print(f"  Folder: {source_save_path}")
     print()
-
     existing_names = {c.container_name for c in container_index.containers}
     base_name = f"{save_name}-Level"
     new_name = base_name
@@ -114,11 +104,9 @@ def main():
         i += 1
     if new_name != base_name:
         print(f"Warning: Save file name conflict detected. Renaming to {new_name}")
-
     container_backup_path = os.path.join(container_path, f"{container_path}.backup.{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}")
     shutil.copytree(container_path, container_backup_path)
     print(f"Created backup of container: {container_backup_path}")
-
     print("Creating new containers")
     save_file_list = [
         ("Level", new_name),
@@ -129,18 +117,12 @@ def main():
     for save_file, container_file_name in save_file_list:
         filename = os.path.join(source_save_path, f"{save_file}.sav")
         add_container(container_index, source_save_path, filename, container_file_name, container_path)
-
     player_path = os.path.join(source_save_path, "Players")
     for save_file in os.listdir(player_path):
         filename = os.path.join(player_path, save_file)
         add_container(container_index, source_save_path, filename, f"{save_name}-Players-{save_file.replace('.sav', '')}", container_path)
-
     container_index.write_file(container_path)
     print("Updated container index")
     print("Done!")
-    os.system("pause")
-
-
-
 if __name__ == '__main__':
     main()
