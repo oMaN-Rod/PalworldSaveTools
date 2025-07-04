@@ -69,8 +69,6 @@ def find_user_containers(pkg_name: str) -> List[Tuple[int | str, Path]]:
     if has_backups:
         print("!! The save directory contains backups !!")
         print("This script will currently skip backups made by the Xbox app.")
-        print("Press enter to continue.")
-        input()
     if len(valid_user_dirs) == 0: return []
     user_dirs = []
     for valid_user_dir in valid_user_dirs:
