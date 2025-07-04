@@ -7,6 +7,7 @@ def backup_whole_directory(source_folder, backup_folder):
     backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
     print(f"Backup of {source_folder} created at: {backup_path}")
+
 def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     if new_guid[-4:] == '.sav' or old_guid[-4:] == '.sav':
         messagebox.showerror("Error", "Use only the GUID, not the entire filename.")
@@ -53,25 +54,38 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     if os.path.exists(new_sav_path): os.remove(new_sav_path)
     os.rename(old_sav_path, new_sav_path)
     messagebox.showinfo("Success", "Fix has been applied! Have fun!")
+
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
         raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
     gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
     return gvas_file.dump()
+
 def json_to_sav(json_data, output_filepath):
     gvas_file = GvasFile.load(json_data)
     save_type = 0x32 if "Pal.PalworldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name else 0x31
     sav_file = compress_gvas_to_sav(gvas_file.write(SKP_PALWORLD_CUSTOM_PROPERTIES), save_type)
     with open(output_filepath, "wb") as f:
         f.write(sav_file)
+
 def populate_player_lists(folder_path):
     players_folder = os.path.join(folder_path, "Players")
     if not os.path.exists(players_folder):
         messagebox.showerror("Error", "Players folder not found next to selected Level.sav")
         return []
-    player_files = [f[:-4] for f in os.listdir(players_folder) if f.endswith(".sav")]
+    player_files = []
+    level_json = sav_to_json(os.path.join(folder_path, 'Level.sav'))
+    group_data_list = level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
+    for group in group_data_list:
+        if group['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
+            players = group['value']['RawData']['value'].get('players', [])
+            for player in players:
+                uid = str(player.get('player_uid', '')).replace('-', '')
+                name = player.get('player_info', {}).get('player_name', 'Unknown')
+                player_files.append(f"{uid} - {name}")
     return player_files
+
 def choose_level_file():
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])
     if not path: return
@@ -87,38 +101,54 @@ def choose_level_file():
     old_guid_combobox.set("")
     new_guid_combobox.configure(values=player_values)
     new_guid_combobox.set("")
+
+def extract_guid(display_text):
+    return display_text.split(' - ')[0]
+
 def fix_save_wrapper():
-    old_guid = old_guid_combobox.get()
-    new_guid = new_guid_combobox.get()
+    old_guid_display = old_guid_combobox.get()
+    new_guid_display = new_guid_combobox.get()
     file_path = level_sav_entry.get()
-    if not (old_guid and new_guid and file_path):
+    if not (old_guid_display and new_guid_display and file_path):
         messagebox.showerror("Error", "Please fill in all fields!")
         return
+    old_guid = extract_guid(old_guid_display)
+    new_guid = extract_guid(new_guid_display)
     folder_path = os.path.dirname(file_path)
     backup_whole_directory(folder_path, "Backups/Fix Host Save")
     fix_save(folder_path, new_guid, old_guid)
+
 ctk.set_appearance_mode("dark")
 window = ctk.CTk()
 window.title("Fix Host Save - GUID Migrator")
 window.geometry("520x350")
+
+import sys
 icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
 try: window.iconbitmap(icon_path)
 except Exception as e: print(f"Could not set icon: {e}")
+
 ctk.CTkLabel(window, text='Select Level.sav file:').pack(pady=(15, 5))
 file_frame = ctk.CTkFrame(window)
 file_frame.pack(pady=0, padx=10, fill="x")
+
 level_sav_entry = ctk.CTkEntry(file_frame, width=400)
 level_sav_entry.pack(side="left", padx=(5, 5), pady=5)
+
 browse_button = ctk.CTkButton(file_frame, text="Browse", command=choose_level_file)
 browse_button.pack(side="left", padx=5, pady=5)
+
 ctk.CTkLabel(window, text='Old GUID:').pack(pady=(15, 5))
 old_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
 old_guid_combobox.pack()
 old_guid_combobox.set("")
+
 ctk.CTkLabel(window, text='New GUID:').pack(pady=(15, 5))
 new_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
 new_guid_combobox.pack()
 new_guid_combobox.set("")
+
 migrate_button = ctk.CTkButton(window, text="Migrate", command=fix_save_wrapper)
 migrate_button.pack(pady=20)
+
 window.mainloop()
