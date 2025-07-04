@@ -26,7 +26,7 @@ def setup_environment():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
 def get_versions():
-    tools_version = "1.0.41"
+    tools_version = "1.0.42"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -163,7 +163,7 @@ converting_tools = [
     "Convert Level.json file back to Level.sav",
     "Convert Player files to json format",
     "Convert Player files back to sav format",
-    "Convert Game Pass Save to Steam Save",
+    "Convert GamePass ←→ Steam",
     "Convert SteamID",
     "Convert Coordinates"
 ]
