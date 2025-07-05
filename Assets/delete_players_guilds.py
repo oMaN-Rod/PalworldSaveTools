@@ -6,6 +6,9 @@ from uuid import UUID
 import os
 import shutil
 import time
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+import sys
 current_save_path = None
 def backup_whole_directory(source_folder, backup_folder):
     if not os.path.exists(backup_folder): os.makedirs(backup_folder)
@@ -34,16 +37,30 @@ def populate_player_lists(folder_path):
     guild_files = []
     level_json = sav_to_json(os.path.join(folder_path, 'Level.sav'))
     group_data_list = level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
+    tick_now = level_json['properties']['worldSaveData']['value']['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
     for i, group in enumerate(group_data_list):
         if group['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
+            raw = group['value']['RawData']['value']
             guild_id = group['value'].get('GroupId', {}).get('value') or group.get('key') or f"guild_{i}"
-            guild_name = group['value']['RawData']['value'].get('guild_name', 'Unknown Guild')
-            guild_files.append(f"{guild_id} - {guild_name}")
-            players = group['value']['RawData']['value'].get('players', [])
+            guild_name = raw.get('guild_name', 'Unknown Guild')
+            players = raw.get('players', [])
+            if players:
+                admin_uid = str(players[0].get('player_uid', '')).replace('-', '')
+                admin_name = players[0].get('player_info', {}).get('player_name', 'Unknown Leader')
+            else:
+                admin_uid = ""
+                admin_name = "Unknown Leader"
+            guild_files.append((guild_id, guild_name, admin_name))
             for player in players:
                 uid = str(player.get('player_uid', '')).replace('-', '')
                 name = player.get('player_info', {}).get('player_name', 'Unknown')
-                player_files.append(f"{uid} - {name}")
+                last_online = player.get('player_info', {}).get('last_online_real_time')
+                if last_online is None:
+                    last_online_str = "N/A"
+                else:
+                    seconds_offline = (tick_now - last_online) / 1e7
+                    last_online_str = format_duration(seconds_offline)
+                player_files.append((uid, name, last_online_str))
     return player_files, guild_files
 def extract_guid(display_text):
     return display_text.split(' - ')[0]
@@ -218,27 +235,34 @@ def choose_level_file():
     level_sav_entry.delete(0, "end")
     level_sav_entry.insert(0, path)
     player_values, guild_values = populate_player_lists(folder_path)
-    old_guid_combobox.configure(values=player_values)
-    guild_guid_combobox.configure(values=guild_values)
-    old_guid_combobox.set("")
-    guild_guid_combobox.set("")
+    old_tree.delete(*old_tree.get_children())
+    guild_tree.delete(*guild_tree.get_children())
+    for guid, name, last_online_str in player_values:
+        old_tree.insert("", "end", values=(name, guid, last_online_str))
+    old_tree.original_rows = old_tree.get_children()
+    for guid, name, leader in guild_values:
+        guild_tree.insert("", "end", values=(name, leader, guid))
+    guild_tree.original_rows = guild_tree.get_children()
+    player_result_label.config(text="Selected Player: N/A")
+    guild_result_label.config(text="Selected Guild: N/A")
     global current_save_path
     current_save_path = folder_path
 def delete_selected_player():
-    display = old_guid_combobox.get()
-    if not display:
+    sel = old_tree.selection()
+    if not sel:
         messagebox.showerror("Error", "Select a player first")
         return
-    guid = UUID(extract_guid(display))
+    guid_str = old_tree.item(sel[0])['values'][0]
+    guid = UUID(guid_str)
     backup_whole_directory(current_save_path, "Backups/Delete Player")
     delete_player(current_save_path, guid)
     choose_level_file()
 def delete_selected_guild():
-    display = guild_guid_combobox.get()
-    if not display:
+    sel = guild_tree.selection()
+    if not sel:
         messagebox.showerror("Error", "Select a guild first")
         return
-    guid_str = extract_guid(display)
+    guid_str = guild_tree.item(sel[0])['values'][0]
     try:
         guid = UUID(guid_str)
     except:
@@ -271,38 +295,132 @@ def batch_delete_by_caught():
     backup_whole_directory(current_save_path, "Backups/Delete By Caught")
     delete_players_by_caught_count(current_save_path, min_caught)
     choose_level_file()
-ctk.set_appearance_mode("dark")
-window = ctk.CTk()
+def filter_treeview(tree, query):
+    query = query.lower()
+    for row in tree.original_rows:
+        tree.reattach(row, '', 'end')
+    for row in tree.original_rows:
+        values = tree.item(row, "values")
+        if not any(query in str(value).lower() for value in values):
+            tree.detach(row)
+def on_old_search(*args):
+    filter_treeview(old_tree, old_search_var.get())
+def on_guild_search(*args):
+    filter_treeview(guild_tree, guild_search_var.get())
+def on_player_select(event):
+    selected = old_tree.selection()
+    if selected:
+        values = old_tree.item(selected[0], 'values')
+        player_result_label.config(text=f"Selected Player: {values[1]} ({values[0]})")
+    else:
+        player_result_label.config(text="Selected Player: N/A")
+def on_guild_select(event):
+    selected = guild_tree.selection()
+    if selected:
+        values = guild_tree.item(selected[0], 'values')
+        guild_result_label.config(text=f"Selected Guild: {values[1]} ({values[0]})")
+    else:
+        guild_result_label.config(text="Selected Guild: N/A")        
+def sort_treeview_column(tree, col, reverse):
+    data = [(tree.set(k, col), k) for k in tree.get_children('')]
+    try:
+        data.sort(key=lambda t: int(t[0]), reverse=reverse)
+    except ValueError:
+        data.sort(key=lambda t: t[0].lower(), reverse=reverse)
+    for index, (_, k) in enumerate(data):
+        tree.move(k, '', index)
+    tree.heading(col, command=lambda: sort_treeview_column(tree, col, not reverse))
+window = tk.Tk()
 window.title("Player & Guild Deletion Tool")
-window.geometry("520x600")
-import sys
-icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
-try: window.iconbitmap(icon_path)
-except: pass
-ctk.CTkLabel(window, text='Select Level.sav file:').pack(pady=(15, 5))
-file_frame = ctk.CTkFrame(window)
-file_frame.pack(pady=0, padx=10, fill="x")
-level_sav_entry = ctk.CTkEntry(file_frame, width=400)
-level_sav_entry.pack(side="left", padx=(5, 5), pady=5)
-ctk.CTkButton(file_frame, text="Browse", command=choose_level_file).pack(side="left", padx=5, pady=5)
-ctk.CTkLabel(window, text='Player GUID:').pack(pady=(15, 5))
-old_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
-old_guid_combobox.pack()
-old_guid_combobox.set("")
-ctk.CTkButton(window, text="Delete Selected Player", command=delete_selected_player).pack(pady=10)
-ctk.CTkLabel(window, text='Guild GUID:').pack(pady=(15, 5))
-guild_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
-guild_guid_combobox.pack()
-guild_guid_combobox.set("")
-ctk.CTkButton(window, text="Delete Selected Guild and Players", command=delete_selected_guild).pack(pady=10)
-ctk.CTkLabel(window, text='Delete Inactive Players (days):').pack(pady=(15,5))
-inactive_days_entry = ctk.CTkEntry(window, width=100)
-inactive_days_entry.pack()
+window.geometry("1200x550")
+window.config(bg="#2f2f2f")
+try:
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
+    window.iconbitmap(icon_path)
+except Exception:
+    pass
+font_style = ("Arial", 10)
+style = ttk.Style()
+style.theme_use('clam')
+style.configure("Treeview.Heading", font=("Arial", 12, "bold"), background="#444444", foreground="white")
+style.configure("Treeview", background="#333333", foreground="white", rowheight=25, fieldbackground="#333333", borderwidth=0)
+file_frame = tk.Frame(window, bg="#2f2f2f")
+file_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
+file_frame.grid_columnconfigure(1, weight=1)
+tk.Label(file_frame, text='Select Level.sav file:', bg="#2f2f2f", fg="white", font=font_style).grid(row=0, column=0)
+level_sav_entry = tk.Entry(file_frame, font=font_style, bg="#444444", fg="white", insertbackground="white")
+level_sav_entry.grid(row=0, column=1, sticky="ew", padx=5)
+browse_button = tk.Button(file_frame, text="Browse", command=choose_level_file, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+browse_button.grid(row=0, column=2, padx=(0, 15))
+tk.Label(file_frame, text="Delete players inactive for days:", bg="#2f2f2f", fg="white", font=font_style).grid(row=0, column=3)
+inactive_days_entry = tk.Entry(file_frame, width=5, font=font_style, bg="#444444", fg="white", insertbackground="white")
 inactive_days_entry.insert(0, "30")
-ctk.CTkButton(window, text="Batch Delete Inactive Players", command=batch_delete_inactive).pack(pady=10)
-ctk.CTkLabel(window, text='Delete Players with less than X Caught Pals:').pack(pady=(15,5))
-caught_pals_entry = ctk.CTkEntry(window, width=100)
-caught_pals_entry.pack()
-caught_pals_entry.insert(0, "5")
-ctk.CTkButton(window, text="Batch Delete by Caught Pals", command=batch_delete_by_caught).pack(pady=10)
+inactive_days_entry.grid(row=0, column=4, padx=(2, 5))
+delete_inactive_btn = tk.Button(file_frame, text="Delete", command=batch_delete_inactive, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+delete_inactive_btn.grid(row=0, column=5, padx=(0, 15))
+tk.Label(file_frame, text="Delete players with less than pals caught:", bg="#2f2f2f", fg="white", font=font_style).grid(row=0, column=6)
+caught_pals_entry = tk.Entry(file_frame, width=5, font=font_style, bg="#444444", fg="white", insertbackground="white")
+caught_pals_entry.insert(0, "1")
+caught_pals_entry.grid(row=0, column=7, padx=(2, 5))
+delete_by_caught_btn = tk.Button(file_frame, text="Delete", command=batch_delete_by_caught, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+delete_by_caught_btn.grid(row=0, column=8)
+old_frame = tk.Frame(window, bg="#2f2f2f")
+old_frame.grid(row=1, column=0, sticky="nsew", padx=(10,5), pady=10)
+old_frame.grid_rowconfigure(1, weight=1)
+old_frame.grid_columnconfigure(0, weight=1)
+search_frame_old = tk.Frame(old_frame, bg="#2f2f2f")
+search_frame_old.grid(row=0, column=0, sticky="ew", pady=5)
+old_search_var = tk.StringVar()
+tk.Label(search_frame_old, text="Search Players:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+old_search_entry = tk.Entry(search_frame_old, textvariable=old_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
+old_search_entry.pack(side='left', fill='x', expand=True)
+old_tree = ttk.Treeview(old_frame, columns=("Name", "GUID", "LastOnline"), show='headings', selectmode='browse', style="Treeview")
+old_tree.grid(row=1, column=0, sticky="nsew")
+old_tree.heading("Name", text="Player Name", command=lambda: sort_treeview_column(old_tree, "Name", False))
+old_tree.heading("GUID", text="Player UID", command=lambda: sort_treeview_column(old_tree, "GUID", False))
+old_tree.heading("LastOnline", text="Last Online", command=lambda: sort_treeview_column(old_tree, "LastOnline", False))
+old_tree.column("Name", width=200, anchor='center', stretch=True)
+old_tree.column("GUID", width=200, anchor='center', stretch=True)
+old_tree.column("LastOnline", width=150, anchor='center', stretch=True)
+old_tree.tag_configure("even", background="#333333")
+old_tree.tag_configure("odd", background="#444444")
+old_tree.tag_configure("selected", background="#555555")
+player_result_label = tk.Label(old_frame, text="Selected Player: N/A", bg="#2f2f2f", fg="white", font=font_style)
+player_result_label.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+delete_player_btn = tk.Button(old_frame, text="Delete Selected Player", command=delete_selected_player, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+delete_player_btn.grid(row=3, column=0, sticky="ew", pady=5)
+guild_frame = tk.Frame(window, bg="#2f2f2f")
+guild_frame.grid(row=1, column=1, sticky="nsew", padx=(5,10), pady=10)
+guild_frame.grid_rowconfigure(1, weight=1)
+guild_frame.grid_columnconfigure(0, weight=1)
+search_frame_guild = tk.Frame(guild_frame, bg="#2f2f2f")
+search_frame_guild.grid(row=0, column=0, sticky="ew", pady=5)
+guild_search_var = tk.StringVar()
+tk.Label(search_frame_guild, text="Search Guilds:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+guild_search_entry = tk.Entry(search_frame_guild, textvariable=guild_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
+guild_search_entry.pack(side='left', fill='x', expand=True)
+guild_tree = ttk.Treeview(guild_frame, columns=("Name", "Leader", "GUID"), show='headings', selectmode='browse', style="Treeview")
+guild_tree.grid(row=1, column=0, sticky="nsew")
+guild_tree.heading("Name", text="Guild Name", command=lambda: sort_treeview_column(guild_tree, "Name", False))
+guild_tree.heading("Leader", text="Guild Leader", command=lambda: sort_treeview_column(guild_tree, "Leader", False))
+guild_tree.heading("GUID", text="Guild ID", command=lambda: sort_treeview_column(guild_tree, "GUID", False))
+guild_tree.column("Name", width=200, anchor='center', stretch=True)
+guild_tree.column("Leader", width=150, anchor='center', stretch=True)
+guild_tree.column("GUID", width=200, anchor='center', stretch=True)
+guild_tree.tag_configure("even", background="#333333")
+guild_tree.tag_configure("odd", background="#444444")
+guild_tree.tag_configure("selected", background="#555555")
+guild_result_label = tk.Label(guild_frame, text="Selected Guild: N/A", bg="#2f2f2f", fg="white", font=font_style)
+guild_result_label.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+delete_guild_btn = tk.Button(guild_frame, text="Delete Selected Guild", command=delete_selected_guild, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+delete_guild_btn.grid(row=3, column=0, sticky="ew", pady=5)
+window.grid_rowconfigure(1, weight=1)
+window.grid_columnconfigure(0, weight=1)
+window.grid_columnconfigure(1, weight=1)
+old_tree.original_rows = []
+guild_tree.original_rows = []
+old_search_var.trace_add('write', lambda *args: filter_treeview(old_tree, old_search_var.get()))
+guild_search_var.trace_add('write', lambda *args: filter_treeview(guild_tree, guild_search_var.get()))
+old_tree.bind("<<TreeviewSelect>>", on_player_select)
+guild_tree.bind("<<TreeviewSelect>>", on_guild_select)
 window.mainloop()
