@@ -85,7 +85,7 @@ def run_tool(choice):
         11: generate_map,
         12: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "character_transfer.py")]),
         13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
-        14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),  # fix_host_save_manual.py
+        14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
         15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
         16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_players_guilds.py")]),
         17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
