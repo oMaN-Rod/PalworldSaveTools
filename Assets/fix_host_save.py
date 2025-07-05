@@ -96,10 +96,25 @@ def populate_player_lists(folder_path):
 def populate_player_tree(tree, folder_path):
     tree.delete(*tree.get_children())
     player_list = populate_player_lists(folder_path)
-    for i, player in enumerate(player_list):
+    existing_iids = set()
+    for player in player_list:
         uid, name = player.split(' - ', 1)
-        tree.insert('', 'end', iid=uid, values=(uid, name))
+        orig_uid = uid
+        count = 1
+        while uid in existing_iids:
+            uid = f"{orig_uid}_{count}"
+            count += 1
+        tree.insert('', 'end', iid=uid, values=(orig_uid, name))
+        existing_iids.add(uid)
     tree.original_rows = list(tree.get_children())
+def filter_treeview(tree, query):
+    query = query.lower()
+    for row in tree.original_rows:
+        tree.reattach(row, '', 'end')
+    for row in tree.original_rows:
+        values = tree.item(row, "values")
+        if not any(query in str(value).lower() for value in values):
+            tree.detach(row)
 def filter_treeview(tree, query):
     query = query.lower()
     for row in tree.original_rows:

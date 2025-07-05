@@ -252,8 +252,12 @@ def delete_selected_player():
     if not sel:
         messagebox.showerror("Error", "Select a player first")
         return
-    guid_str = old_tree.item(sel[0])['values'][0]
-    guid = UUID(guid_str)
+    guid_str = old_tree.item(sel[0])['values'][1]
+    try:
+        guid = UUID(guid_str.replace('-', '').strip())
+    except ValueError:
+        messagebox.showerror("Error", "Invalid Player UID format")
+        return
     backup_whole_directory(current_save_path, "Backups/Delete Player")
     delete_player(current_save_path, guid)
     choose_level_file()
@@ -262,11 +266,11 @@ def delete_selected_guild():
     if not sel:
         messagebox.showerror("Error", "Select a guild first")
         return
-    guid_str = guild_tree.item(sel[0])['values'][0]
+    guid_str = guild_tree.item(sel[0])['values'][2]
     try:
-        guid = UUID(guid_str)
-    except:
-        messagebox.showerror("Error", "Invalid guild ID format")
+        guid = UUID(guid_str.replace('-', '').strip())
+    except ValueError:
+        messagebox.showerror("Error", "Invalid Guild ID format")
         return
     backup_whole_directory(current_save_path, "Backups/Delete Guild")
     delete_guild(current_save_path, guid)
