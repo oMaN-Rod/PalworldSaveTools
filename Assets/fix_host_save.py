@@ -1,8 +1,15 @@
+import os, shutil, sys
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
 from scan_save import *
-from datetime import datetime, timedelta
+from datetime import datetime
 import customtkinter as ctk
-def backup_whole_directory(source_folder, backup_folder):
-    if not os.path.exists(backup_folder): os.makedirs(backup_folder)
+player_list_cache = []
+def backup_whole_directory(source_folder, subfolder_name):
+    print(f"Automatically backing up {source_folder}...")
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    backup_folder = os.path.join(tools_dir, "Backups", subfolder_name)
+    os.makedirs(backup_folder, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
@@ -48,6 +55,7 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
                     for j in range(len(group_data['players'])):
                         if old_guid_formatted == group_data['players'][j]['player_uid']:
                             group_data['players'][j]['player_uid'] = new_guid_formatted
+    backup_whole_directory(os.path.dirname(level_sav_path), "Fix Host Save")
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     if os.path.exists(new_sav_path): os.remove(new_sav_path)
@@ -66,13 +74,16 @@ def json_to_sav(json_data, output_filepath):
     with open(output_filepath, "wb") as f:
         f.write(sav_file)
 def populate_player_lists(folder_path):
+    global player_list_cache
+    if player_list_cache:
+        return player_list_cache
     players_folder = os.path.join(folder_path, "Players")
     if not os.path.exists(players_folder):
         messagebox.showerror("Error", "Players folder not found next to selected Level.sav")
         return []
-    player_files = []
     level_json = sav_to_json(os.path.join(folder_path, 'Level.sav'))
     group_data_list = level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
+    player_files = []
     for group in group_data_list:
         if group['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
             players = group['value']['RawData']['value'].get('players', [])
@@ -80,8 +91,25 @@ def populate_player_lists(folder_path):
                 uid = str(player.get('player_uid', '')).replace('-', '')
                 name = player.get('player_info', {}).get('player_name', 'Unknown')
                 player_files.append(f"{uid} - {name}")
+    player_list_cache = player_files
     return player_files
+def populate_player_tree(tree, folder_path):
+    tree.delete(*tree.get_children())
+    player_list = populate_player_lists(folder_path)
+    for i, player in enumerate(player_list):
+        uid, name = player.split(' - ', 1)
+        tree.insert('', 'end', iid=uid, values=(uid, name))
+    tree.original_rows = list(tree.get_children())
+def filter_treeview(tree, query):
+    query = query.lower()
+    for row in tree.original_rows:
+        tree.reattach(row, '', 'end')
+    for row in tree.original_rows:
+        values = tree.item(row, "values")
+        if not any(query in str(value).lower() for value in values):
+            tree.detach(row)
 def choose_level_file():
+    global player_list_cache
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])
     if not path: return
     folder_path = os.path.dirname(path)
@@ -89,50 +117,118 @@ def choose_level_file():
     if not os.path.exists(players_folder):
         messagebox.showerror("Error", "Players folder not found next to selected Level.sav")
         return
+    player_list_cache = []
     level_sav_entry.delete(0, "end")
     level_sav_entry.insert(0, path)
-    player_values = populate_player_lists(folder_path)
-    old_guid_combobox.configure(values=player_values)
-    old_guid_combobox.set("")
-    new_guid_combobox.configure(values=player_values)
-    new_guid_combobox.set("")
-def extract_guid(display_text):
-    return display_text.split(' - ')[0]
+    populate_player_lists(folder_path)
+    populate_player_tree(old_tree, folder_path)
+    populate_player_tree(new_tree, folder_path)
+    old_search_var.set('')
+    new_search_var.set('')
+def extract_guid_from_tree_selection(tree):
+    selected = tree.selection()
+    if not selected:
+        return None
+    return tree.item(selected[0], 'values')[0]
 def fix_save_wrapper():
-    old_guid_display = old_guid_combobox.get()
-    new_guid_display = new_guid_combobox.get()
+    old_guid = extract_guid_from_tree_selection(old_tree)
+    new_guid = extract_guid_from_tree_selection(new_tree)
     file_path = level_sav_entry.get()
-    if not (old_guid_display and new_guid_display and file_path):
-        messagebox.showerror("Error", "Please fill in all fields!")
+    if not (old_guid and new_guid and file_path):
+        messagebox.showerror("Error", "Please select old GUID, new GUID and level save file!")
         return
-    old_guid = extract_guid(old_guid_display)
-    new_guid = extract_guid(new_guid_display)
+    if old_guid == new_guid:
+        messagebox.showerror("Error", "Old GUID and New GUID cannot be the same.")
+        return
     folder_path = os.path.dirname(file_path)
-    backup_whole_directory(folder_path, "Backups/Fix Host Save")
     fix_save(folder_path, new_guid, old_guid)
-ctk.set_appearance_mode("dark")
-window = ctk.CTk()
+def sort_treeview_column(treeview, col, reverse):
+    data = [(treeview.set(k, col), k) for k in treeview.get_children('')]
+    data.sort(reverse=reverse)
+    for index, (_, k) in enumerate(data):
+        treeview.move(k, '', index)
+    treeview.heading(col, command=lambda: sort_treeview_column(treeview, col, not reverse))
+window = tk.Tk()
 window.title("Fix Host Save - GUID Migrator")
-window.geometry("520x350")
-import sys
-icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
-try: window.iconbitmap(icon_path)
-except Exception as e: print(f"Could not set icon: {e}")
-ctk.CTkLabel(window, text='Select Level.sav file:').pack(pady=(15, 5))
-file_frame = ctk.CTkFrame(window)
-file_frame.pack(pady=0, padx=10, fill="x")
-level_sav_entry = ctk.CTkEntry(file_frame, width=400)
-level_sav_entry.pack(side="left", padx=(5, 5), pady=5)
-browse_button = ctk.CTkButton(file_frame, text="Browse", command=choose_level_file)
-browse_button.pack(side="left", padx=5, pady=5)
-ctk.CTkLabel(window, text='Old GUID:').pack(pady=(15, 5))
-old_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
-old_guid_combobox.pack()
-old_guid_combobox.set("")
-ctk.CTkLabel(window, text='New GUID:').pack(pady=(15, 5))
-new_guid_combobox = ctk.CTkComboBox(window, width=480, values=[])
-new_guid_combobox.pack()
-new_guid_combobox.set("")
-migrate_button = ctk.CTkButton(window, text="Migrate", command=fix_save_wrapper)
-migrate_button.pack(pady=20)
+window.geometry("1200x600")
+window.config(bg="#2f2f2f")
+try:
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
+    window.iconbitmap(icon_path)
+except Exception as e:
+    print(f"Could not set icon: {e}")
+font_style = ("Arial", 10)
+style = ttk.Style()
+style.theme_use('clam')
+style.configure("Treeview.Heading", font=("Arial", 12, "bold"), background="#444444", foreground="white")
+style.configure("Treeview", background="#333333", foreground="white", rowheight=25, fieldbackground="#333333", borderwidth=0)
+file_frame = tk.Frame(window, bg="#2f2f2f")
+file_frame.pack(fill='x', padx=10, pady=10)
+tk.Label(file_frame, text='Select Level.sav file:', bg="#2f2f2f", fg="white", font=font_style).pack(side='left')
+level_sav_entry = tk.Entry(file_frame, width=70, font=font_style, bg="#444444", fg="white", insertbackground="white")
+level_sav_entry.pack(side='left', padx=5)
+browse_button = tk.Button(file_frame, text="Browse", command=choose_level_file, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+browse_button.pack(side='left')
+old_frame = tk.Frame(window, bg="#2f2f2f")
+old_frame.pack(side='left', fill='both', expand=True, padx=(10,5), pady=10)
+search_frame_old = tk.Frame(old_frame, bg="#2f2f2f")
+search_frame_old.pack(fill='x', pady=5)
+old_search_var = tk.StringVar()
+old_search_entry = tk.Entry(search_frame_old, textvariable=old_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
+tk.Label(search_frame_old, text="Search Source Player:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+old_search_entry.pack(side='left', fill='x', expand=True)
+old_tree = ttk.Treeview(old_frame, columns=("GUID", "Name"), show='headings', selectmode='browse', style="Treeview")
+old_tree.pack(fill='both', expand=True)
+old_tree.heading("GUID", text="GUID", command=lambda: sort_treeview_column(old_tree, "GUID", False))
+old_tree.heading("Name", text="Name", command=lambda: sort_treeview_column(old_tree, "Name", False))
+old_tree.column("GUID", width=150, anchor='center')
+old_tree.column("Name", width=200, anchor='center')
+old_tree.tag_configure("even", background="#333333")
+old_tree.tag_configure("odd", background="#444444")
+old_tree.tag_configure("selected", background="#555555")
+new_frame = tk.Frame(window, bg="#2f2f2f")
+new_frame.pack(side='left', fill='both', expand=True, padx=(5,10), pady=10)
+search_frame_new = tk.Frame(new_frame, bg="#2f2f2f")
+search_frame_new.pack(fill='x', pady=5)
+new_search_var = tk.StringVar()
+new_search_entry = tk.Entry(search_frame_new, textvariable=new_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
+tk.Label(search_frame_new, text="Search Target Player:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+new_search_entry.pack(side='left', fill='x', expand=True)
+new_tree = ttk.Treeview(new_frame, columns=("GUID", "Name"), show='headings', selectmode='browse', style="Treeview")
+new_tree.pack(fill='both', expand=True)
+new_tree.heading("GUID", text="GUID", command=lambda: sort_treeview_column(new_tree, "GUID", False))
+new_tree.heading("Name", text="Name", command=lambda: sort_treeview_column(new_tree, "Name", False))
+new_tree.column("GUID", width=150, anchor='center')
+new_tree.column("Name", width=200, anchor='center')
+new_tree.tag_configure("even", background="#333333")
+new_tree.tag_configure("odd", background="#444444")
+new_tree.tag_configure("selected", background="#555555")
+old_tree.original_rows = []
+new_tree.original_rows = []
+def filter_old(*args): filter_treeview(old_tree, old_search_var.get(), True)
+def filter_new(*args): filter_treeview(new_tree, new_search_var.get(), False)
+old_search_var.trace_add('write', lambda *args: filter_treeview(old_tree, old_search_var.get()))
+new_search_var.trace_add('write', lambda *args: filter_treeview(new_tree, new_search_var.get()))
+migrate_button = tk.Button(window, text="Migrate", command=fix_save_wrapper, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+migrate_button.pack(pady=10, fill='x', padx=10)
+source_result_label = tk.Label(old_frame, text="Source Player: N/A", bg="#2f2f2f", fg="white", font=font_style)
+source_result_label.pack(fill='x', pady=(5,0))
+target_result_label = tk.Label(new_frame, text="Target Player: N/A", bg="#2f2f2f", fg="white", font=font_style)
+target_result_label.pack(fill='x', pady=(5,0))
+def update_source_selection(event):
+    selected = old_tree.selection()
+    if selected:
+        values = old_tree.item(selected[0], 'values')
+        source_result_label.config(text=f"Source Player: {values[1]} ({values[0]})")
+    else:
+        source_result_label.config(text="Source Player: N/A")
+def update_target_selection(event):
+    selected = new_tree.selection()
+    if selected:
+        values = new_tree.item(selected[0], 'values')
+        target_result_label.config(text=f"Target Player: {values[1]} ({values[0]})")
+    else:
+        target_result_label.config(text="Target Player: N/A")
+old_tree.bind('<<TreeviewSelect>>', update_source_selection)
+new_tree.bind('<<TreeviewSelect>>', update_target_selection)
 window.mainloop()
