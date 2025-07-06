@@ -21,7 +21,7 @@
   (*This ensures Python is accessible from the command line!*)  
   ![Add Python to PATH checkbox](https://i.imgur.com/SCJEkdJ.png)
 
-### 3. **[Visual Studio Build Tools]([https://aka.ms/vs/17/release/vs_BuildTools.exe](https://aka.ms/vs/17/release/vs_BuildTools.exe))**
+### 3. **[Visual Studio Build Tools]([https://aka.ms/vs/17/release/vs_BuildTools.exe](https://aka.ms/vs/17/release/vs_BuildTools.exe)**
 - Download Visual Studio Build Tools.
 - During installation, **CHECK** the box that says:  
   **"Desktop development with C++"** 🟩  
