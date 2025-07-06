@@ -28,11 +28,9 @@
   (*This allows the `cityhash` and `oozlib` library to install!*)  
   ![CityHash Screenshot](https://i.imgur.com/RZGZ9So.png)
   
-### 4. **Git**
-- Install Git from the official website: https://git-scm.com/downloads  
-- During installation, make sure to select **"Git from the command line and also from 3rd-party software"** option. 🟩  
+### 4. **[Git](https://gitforwindows.org/)**
+- Download and install Git.  
 (*This allows Git commands to be used by scripts and Python subprocesses!*)  
-![Git PATH option](https://i.imgur.com/2f1fwlA.png)
 
 ### 5. ***Start Menu.cmd***
 
