@@ -28,7 +28,7 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.49.rc1"
+    tools_version = "1.0.50"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -157,9 +157,9 @@ def usage_tools():
     print("Or raise an issue on my github: https://github.com/deafdudecomputers/PalworldSaveTools")
 def readme_tools():
     display_logo()
-    readme_path = Path("README.md")
+    readme_path = Path("readme.md")
     if readme_path.exists(): subprocess.run(["start", str(readme_path)], shell=True)
-    else: print(f"{RED_FONT}README.md not found.{RESET_FONT}")
+    else: print(f"{RED_FONT}readme.md not found.{RESET_FONT}")
 converting_tools = [
     "Convert Level.sav file to Level.json",
     "Convert Level.json file back to Level.sav",
