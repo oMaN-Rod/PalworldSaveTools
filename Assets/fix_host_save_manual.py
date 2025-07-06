@@ -56,7 +56,7 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
     return gvas_file.dump()
 def json_to_sav(json_data, output_filepath):

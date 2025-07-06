@@ -1,3 +1,4 @@
+from import_libs import *
 from convert import *
 def search_for_players_folders(search_name, root_path):
     return [
@@ -17,8 +18,8 @@ def main():
                 path = os.path.join(root, file)
                 if sys.argv[1] == "sav" and file.endswith(".json"): 
                     output_path = path.replace(".json", ".sav")
-                    convert_json_to_sav(path, output_path, oodle_path=oodle_path)
+                    convert_json_to_sav(path, output_path)
                 elif sys.argv[1] == "json" and file.endswith(".sav"): 
                     output_path = path.replace(".sav", ".json")
-                    convert_sav_to_json(path, output_path, oodle_path=oodle_path)
+                    convert_sav_to_json(path, output_path)
 if __name__ == "__main__": main()

@@ -5,11 +5,9 @@ from scan_save import *
 from datetime import datetime
 import customtkinter as ctk
 player_list_cache = []
-def backup_whole_directory(source_folder, subfolder_name):
-    print(f"Automatically backing up {source_folder}...")
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    backup_folder = os.path.join(tools_dir, "Backups", subfolder_name)
-    os.makedirs(backup_folder, exist_ok=True)
+def backup_whole_directory(source_folder, backup_folder):
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
@@ -55,16 +53,18 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
                     for j in range(len(group_data['players'])):
                         if old_guid_formatted == group_data['players'][j]['player_uid']:
                             group_data['players'][j]['player_uid'] = new_guid_formatted
-    backup_whole_directory(os.path.dirname(level_sav_path), "Fix Host Save")
+    backup_folder = "Backups/Fix Host Save"
+    backup_whole_directory(os.path.dirname(level_sav_path), backup_folder)
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     if os.path.exists(new_sav_path): os.remove(new_sav_path)
     os.rename(old_sav_path, new_sav_path)
     messagebox.showinfo("Success", "Fix has been applied! Have fun!")
+    reload_level_file()
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
     return gvas_file.dump()
 def json_to_sav(json_data, output_filepath):
@@ -123,6 +123,19 @@ def filter_treeview(tree, query):
         values = tree.item(row, "values")
         if not any(query in str(value).lower() for value in values):
             tree.detach(row)
+def reload_level_file():
+    global player_list_cache
+    path = level_sav_entry.get()
+    if not path or not os.path.exists(path): return
+    folder_path = os.path.dirname(path)
+    players_folder = os.path.join(folder_path, "Players")
+    if not os.path.exists(players_folder): return
+    player_list_cache = []
+    populate_player_lists(folder_path)
+    populate_player_tree(old_tree, folder_path)
+    populate_player_tree(new_tree, folder_path)
+    old_search_var.set('')
+    new_search_var.set('')
 def choose_level_file():
     global player_list_cache
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])

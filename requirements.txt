@@ -5,4 +5,5 @@ matplotlib==3.10.0
 pandas==2.2.3
 requests==2.32.3
 customtkinter
-playwright
+cityhash
+pyooz @ git+https://github.com/MRHRTZ/pyooz.git

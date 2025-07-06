@@ -472,9 +472,8 @@ of your save folder before continuing. Press Yes if you would like to continue.'
     targ_json_gvas.properties = targ_json
     t_host_sav_path = os.path.join(os.path.dirname(t_level_sav_path), 'Players', selected_target_player + '.sav')
     if not os.path.exists(t_host_sav_path): t_host_sav_path = os.path.join(os.path.dirname(t_level_sav_path), '../Players', selected_target_player + '.sav')
-    parent_directory = os.path.dirname(t_level_sav_path)
     backup_folder = "Backups/Character Transfer"
-    backup_whole_directory(parent_directory, backup_folder)
+    backup_whole_directory(os.path.dirname(t_level_sav_path), backup_folder)
     gvas_to_sav(t_level_sav_path, output_data)
     gvas_to_sav(t_host_sav_path, targ_json_gvas.write())
     messagebox.showinfo(title="Transfer Successful", message='Transfer finished! You may continue transferring more players or close the window now.')
@@ -484,7 +483,7 @@ of your save folder before continuing. Press Yes if you would like to continue.'
 def sav_to_gvas(file):
     with open(file, 'rb') as f:
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     return raw_gvas, save_type
 def gvas_to_sav(file, gvas_data):
     sav_file_data = compress_gvas_to_sav(gvas_data, target_save_type)

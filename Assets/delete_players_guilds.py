@@ -19,7 +19,7 @@ def backup_whole_directory(source_folder, backup_folder):
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
     gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
     return gvas_file.dump()
 def json_to_sav(json_data, output_filepath):
@@ -30,9 +30,6 @@ def json_to_sav(json_data, output_filepath):
         f.write(sav_file)
 def populate_player_lists(folder_path):
     players_folder = os.path.join(folder_path, "Players")
-    if not os.path.exists(players_folder):
-        messagebox.showerror("Error", "Players folder not found next to selected Level.sav")
-        return [], []
     player_files = []
     guild_files = []
     level_json = sav_to_json(os.path.join(folder_path, 'Level.sav'))
@@ -84,6 +81,7 @@ def delete_player(folder_path, guid):
     json_to_sav(level_json, level_sav_path)
     os.remove(player_file_path)
     messagebox.showinfo("Success", f"Deleted player {guid_str}")
+    reload_level_file(level_sav_path)
 def format_duration(seconds):
     days, seconds = divmod(seconds, 86400)
     hours, seconds = divmod(seconds, 3600)
@@ -127,6 +125,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
         for info in deleted_info:
             print(" -", info)
         messagebox.showinfo("Success", f"Deleted {len(deleted_info)} inactive player(s).")
+        reload_level_file(level_sav_path)
     else:
         print("\n[Inactive Deletion Report] No inactive players found.")
         messagebox.showinfo("Info", "No inactive players found for deletion.")
@@ -156,6 +155,7 @@ def delete_guild(folder_path, guid):
     group_data_list.remove(guild_to_delete)
     json_to_sav(level_json, level_sav_path)
     messagebox.showinfo("Success", f"Deleted guild and all its players")
+    reload_level_file(level_sav_path)
 def build_player_pal_caught_count(level_json):
     player_pal_caught_count = {}
     group_data_list = level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
@@ -175,7 +175,7 @@ def build_player_pal_caught_count(level_json):
                 try:
                     with open(player_save_file, "rb") as f:
                         data = f.read()
-                        raw_gvas, _ = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+                        raw_gvas, _ = decompress_sav_to_gvas(data)
                     gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
                     json_data = gvas_file.dump()
                     pal_capture_count_list = json_data.get('properties', {}).get('SaveData', {}).get('value', {}).get('RecordData', {}).get('value', {}).get('PalCaptureCount', {}).get('value', [])
@@ -221,9 +221,31 @@ def delete_players_by_caught_count(folder_path, min_caught):
         for info in deleted_info:
             print(" -", info)
         messagebox.showinfo("Success", f"Deleted {len(deleted_info)} player(s) with less than {min_caught} pals caught.")
+        reload_level_file(level_sav_path)
     else:
         print("\n[Pal Caught Deletion Report] No players found below the threshold.")
         messagebox.showinfo("Info", "No players deleted based on caught pals count.")
+def reload_level_file(path):
+    global current_save_path
+    folder_path = os.path.dirname(path)
+    players_folder = os.path.join(folder_path, "Players")
+    if not os.path.exists(players_folder):
+        messagebox.showerror("Error", "Players folder not found next to selected Level.sav")
+        return
+    level_sav_entry.delete(0, "end")
+    level_sav_entry.insert(0, path)
+    player_values, guild_values = populate_player_lists(folder_path)
+    old_tree.delete(*old_tree.get_children())
+    guild_tree.delete(*guild_tree.get_children())
+    for guid, name, last_online_str in player_values:
+        old_tree.insert("", "end", values=(name, guid, last_online_str))
+    old_tree.original_rows = old_tree.get_children()
+    for guid, name, leader in guild_values:
+        guild_tree.insert("", "end", values=(name, leader, guid))
+    guild_tree.original_rows = guild_tree.get_children()
+    player_result_label.config(text="Selected Player: N/A")
+    guild_result_label.config(text="Selected Guild: N/A")
+    current_save_path = folder_path
 def choose_level_file():
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])
     if not path: return
@@ -260,7 +282,6 @@ def delete_selected_player():
         return
     backup_whole_directory(current_save_path, "Backups/Delete Player")
     delete_player(current_save_path, guid)
-    choose_level_file()
 def delete_selected_guild():
     sel = guild_tree.selection()
     if not sel:
@@ -274,7 +295,6 @@ def delete_selected_guild():
         return
     backup_whole_directory(current_save_path, "Backups/Delete Guild")
     delete_guild(current_save_path, guid)
-    choose_level_file()
 def batch_delete_inactive():
     if not current_save_path:
         messagebox.showerror("Error", "Load a save first")
@@ -286,7 +306,6 @@ def batch_delete_inactive():
         return
     backup_whole_directory(current_save_path, "Backups/Delete Inactive")
     delete_inactive_players(current_save_path, days)
-    choose_level_file()
 def batch_delete_by_caught():
     if not current_save_path:
         messagebox.showerror("Error", "Load a save first")
@@ -298,7 +317,6 @@ def batch_delete_by_caught():
         return
     backup_whole_directory(current_save_path, "Backups/Delete By Caught")
     delete_players_by_caught_count(current_save_path, min_caught)
-    choose_level_file()
 def filter_treeview(tree, query):
     query = query.lower()
     for row in tree.original_rows:

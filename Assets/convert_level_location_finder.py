@@ -1,3 +1,4 @@
+from import_libs import *
 from convert import *
 def search_file(pattern, directory):
     return glob.glob(f"{directory}/PalworldSave/**/{pattern}", recursive=True)
@@ -8,9 +9,9 @@ def main():
     for level_file in level_files:
         if sys.argv[1] == "sav":
             output_path = level_file.replace(".json", ".sav")
-            convert_json_to_sav(level_file, output_path, oodle_path=oodle_path)
+            convert_json_to_sav(level_file, output_path)
         else:
             output_path = level_file.replace(".sav", ".json")
-            convert_sav_to_json(level_file, output_path, oodle_path=oodle_path)
+            convert_sav_to_json(level_file, output_path)
         print(f"Converted {level_file} to {output_path}")
 if __name__ == "__main__": main()

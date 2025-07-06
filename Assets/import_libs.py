@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt, matplotlib.patches as patches, matplotlib.font_
 from multiprocessing import shared_memory
 from tkinter import ttk, filedialog, messagebox, PhotoImage
 from PIL import Image, ImageDraw, ImageOps, ImageFont
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "palworld_save_tools", "commands")))
 from palworld_save_tools.archive import *
 from palworld_save_tools.palsav import *
 from palworld_save_tools.paltypes import *

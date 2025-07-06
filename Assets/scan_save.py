@@ -84,7 +84,7 @@ def LoadFile(filename):
     with open(filename, "rb") as f:
         start_time = time.time()
         data = f.read()
-        raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
         print("Done in %.2fs." % (time.time() - start_time))
         print(f"Parsing {filename}...", end="", flush=True)
         start_time = time.time()
@@ -134,7 +134,7 @@ def count_pals_found(data, player_pals_count):
         character_id = raw_data.get("CharacterID", {}).get("value")
         level = extract_value(raw_data, "Level", 1)
         rank = extract_value(raw_data, "Rank", 1)
-        base = raw_data.get("SlotID", {}).get("value", {}).get("ContainerId", {}).get("value", {}).get("ID", {}).get("value")        
+        base = raw_data.get("SlotId", {}).get("value", {}).get("ContainerId", {}).get("value", {}).get("ID", {}).get("value")      
         gender_value = raw_data.get("Gender", {}).get("value", {}).get("value", "")
         gender_info = {
             "EPalGenderType::Male": "Male",
@@ -191,9 +191,12 @@ def count_pals_found(data, player_pals_count):
     for player_uid, pals_list in owner_pals_info.items():
         pals_by_base_id = defaultdict(list)
         for pal in pals_list:
-            if "ID:" in pal and "None" not in pal:
+            if "ID:" in pal:
                 base_id = pal.split("ID:")[1].strip()
-                pals_by_base_id[base_id].append(pal)
+                if base_id:
+                    pals_by_base_id[base_id].append(pal)
+                else:
+                    pals_by_base_id["Unknown"].append(pal)
         player_name = owner_nicknames.get(player_uid, 'Unknown')
         if player_name == 'Unknown':
             print(f"No nickname found for {player_uid}")
@@ -258,7 +261,7 @@ def ShowPlayers():
             try:
                 with open(sav_file, "rb") as file:
                     data = file.read()
-                    raw_gvas, save_type = decompress_sav_to_gvas(data, oodle_path=oodle_path)
+                    raw_gvas, save_type = decompress_sav_to_gvas(data)
                 gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
                 json_data = json.loads(json.dumps(gvas_file.dump(), cls=CustomEncoder))
                 pal_capture_count_list = json_data.get('properties', {}).get('SaveData', {}).get('value', {}).get('RecordData', {}).get('value', {}).get('PalCaptureCount', {}).get('value', [])
