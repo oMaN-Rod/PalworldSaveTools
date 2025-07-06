@@ -8,27 +8,58 @@ PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
 original_executable = sys.executable
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
+def is_msvc_installed():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    vswhere_path = os.path.join(base_dir, "Assets", "resources", "vswhere.exe")
+    try:
+        result = subprocess.run(
+            [vswhere_path,
+             "-products", "*",
+             "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+             "-property", "installationPath"],
+            capture_output=True, text=True, check=True)
+        return bool(result.stdout.strip())
+    except Exception:
+        return False
+def install_build_tools(installer_path):
+    args = [
+        installer_path,
+        "--quiet", "--wait", "--norestart", "--nocache",
+        "--installPath", r"C:\Program Files (x86)\Microsoft Visual Studio\BuildTools",
+        "--add", "Microsoft.VisualStudio.Workload.VCTools",
+        "--includeRecommended"
+    ]
+    print("Installing Build Tools... (this may take a while)")
+    subprocess.run(" ".join(args), shell=True, check=True)
+def vs_tools_check():
+    if sys.platform != "win32": return
+    if is_msvc_installed():
+        print("MSVC Build Tools already installed.")
+        return
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    installer_path = os.path.join(base_dir, "Assets", "resources", "vs_BuildTools.exe")
+    install_build_tools(installer_path)
+    print("Build Tools installed.")
 def setup_environment():
     if sys.platform != "win32":
         import resource
-        resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+        resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))    
+    vs_tools_check()
     os.system('cls' if os.name == 'nt' else 'clear')
     os.makedirs("PalworldSave/Players", exist_ok=True)
-    if not os.path.exists("requirements_installed.flag"):
-        print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-        if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
-        bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
-        venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
-        sys.executable = venv_python
-        pip_executable = os.path.join("venv", bin_dir, "pip")
-        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
-        with open("requirements_installed.flag", "w") as f: f.write("done")
+    print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
+    if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
+    bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
+    venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
+    sys.executable = venv_python
+    pip_executable = os.path.join("venv", bin_dir, "pip")
+    subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
+    subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.48"
+    tools_version = "1.0.49"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
