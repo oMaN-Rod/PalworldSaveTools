@@ -28,7 +28,7 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.49"
+    tools_version = "1.0.49.rc1"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
