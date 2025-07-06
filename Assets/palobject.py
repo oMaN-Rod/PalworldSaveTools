@@ -13,6 +13,10 @@ def PlayerUid2NoSteam(unrealHashType):
     f = u32((e >> 3) ^ (c - d - e))
     result = u32((u32(u32(f << 10) ^ u32(d - f - e)) >> 15) ^ (e - (u32(f << 10) ^ u32(d - f - e)) - f))
     return "%08X" % result
+def steamIdToPlayerUid(uid):
+    from cityhash import CityHash64
+    hash = CityHash64(str(uid).encode("utf-16-le"))
+    return UUID(int(u32(u32(hash) + (hash >> 32) * 23)).to_bytes(4, byteorder="little", signed=False) + b"\x00" * 12)
 def decode_uuid(obj):
     if '__uuid__' in obj: obj = UUID(obj['__uuid__'])
     return obj

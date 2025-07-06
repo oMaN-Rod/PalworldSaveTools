@@ -14,8 +14,6 @@ def setup_environment():
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
     os.system('cls' if os.name == 'nt' else 'clear')
     os.makedirs("PalworldSave/Players", exist_ok=True)
-    playwright_browsers_path = os.path.join(os.path.dirname(__file__), "venv", "playwright_browsers")
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = playwright_browsers_path
     if not os.path.exists("requirements_installed.flag"):
         print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
         if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
@@ -25,7 +23,6 @@ def setup_environment():
         pip_executable = os.path.join("venv", bin_dir, "pip")
         subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
         subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
-        subprocess.run([venv_python, "-m", "playwright", "install", "webkit"])
         with open("requirements_installed.flag", "w") as f: f.write("done")
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
