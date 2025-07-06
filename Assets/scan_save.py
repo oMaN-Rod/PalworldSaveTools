@@ -100,6 +100,8 @@ def extract_value(data, key, default_value=''):
         if isinstance(value, dict):
             value = value.get('value', default_value)
     return value
+def safe_str(s):
+    return s.encode('utf-8', 'replace').decode('utf-8')
 def count_pals_found(data, player_pals_count):
     from collections import defaultdict
     owner_pals_info = defaultdict(list)
@@ -216,6 +218,7 @@ def count_pals_found(data, player_pals_count):
         for base_id, pals in pals_by_base_id.items():
             owner_logger.info(f"ID: {base_id}")
             owner_logger.info("----------------")
+            sanitized_pals = [safe_str(pal) for pal in sorted(pals)]
             owner_logger.info("\n".join(sorted(pals)))
             owner_logger.info("----------------")
 def ShowPlayers():
