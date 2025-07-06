@@ -23,7 +23,10 @@
 
 ### 3. **Visual Studio Build Tools**
 - Download Visual Studio Build Tools here: [https://aka.ms/vs/17/release/vs_BuildTools.exe](https://aka.ms/vs/17/release/vs_BuildTools.exe)  
-- Run the installer and select the **"C++ build tools"** workload.
+- During installation, **CHECK** the box that says:  
+  **"Desktop development with C++"** 🟩  
+  (*This allows the `cityhash` and `oozlib` library to install!*)  
+  ![CityHash Screenshot](https://i.imgur.com/RZGZ9So.png)
 
 ### 4. ***Start Menu.cmd***
 
