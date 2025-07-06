@@ -3,13 +3,13 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 from scan_save import *
 from datetime import datetime
-def backup_whole_directory(source_folder, subfolder_name):
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    backup_folder = os.path.join(tools_dir, "Backups", subfolder_name)
-    os.makedirs(backup_folder, exist_ok=True)
+def backup_whole_directory(source_folder, backup_folder):
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
+    print(f"Backup of {source_folder} created at: {backup_path}")
 def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     if new_guid[-4:] == '.sav' or old_guid[-4:] == '.sav':
         messagebox.showerror("Error", "Use only the GUID, not the entire filename.")
@@ -47,12 +47,15 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
                     for j in range(len(group_data['players'])):
                         if old_guid_formatted == group_data['players'][j]['player_uid']:
                             group_data['players'][j]['player_uid'] = new_guid_formatted
-    backup_whole_directory(os.path.dirname(level_sav_path), "Fix Host Save")
+    backup_folder = "Backups/Fix Host Save Manual"
+    backup_whole_directory(os.path.dirname(level_sav_path), backup_folder)
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     if os.path.exists(new_sav_path): os.remove(new_sav_path)
     os.rename(old_sav_path, new_sav_path)
     messagebox.showinfo("Success", "Fix has been applied! Have fun!")
+    print(f"Success! Fix has been applied! Have fun!")
+    sys.exit()
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
@@ -78,8 +81,8 @@ font_style = ("Arial", 12)
 frame = tk.Frame(window, bg="#2f2f2f")
 frame.pack(padx=20, pady=20, fill='x')
 tk.Label(frame, text="Level.sav File Path:", bg="#2f2f2f", fg="white", font=font_style).grid(row=0, column=0, sticky='w')
-level_file_entry = tk.Entry(frame, width=60, font=font_style, bg="#444444", fg="white", insertbackground="white")
-level_file_entry.grid(row=0, column=1, padx=5)
+level_file_entry = tk.Entry(frame, font=font_style, bg="#444444", fg="white", insertbackground="white")
+level_file_entry.grid(row=0, column=1, padx=5, sticky='ew')
 def browse_file():
     path = filedialog.askopenfilename(title="Select Level.sav", filetypes=[("SAV Files", "*.sav")])
     if path:
@@ -87,11 +90,11 @@ def browse_file():
         level_file_entry.insert(0, path)
 tk.Button(frame, text="Browse", command=browse_file, bg="#555555", fg="white", font=font_style, activebackground="#666666").grid(row=0, column=2, padx=5)
 tk.Label(frame, text="Old GUID:", bg="#2f2f2f", fg="white", font=font_style).grid(row=1, column=0, sticky='w', pady=10)
-old_guid_entry = tk.Entry(frame, width=40, font=font_style, bg="#444444", fg="white", insertbackground="white")
-old_guid_entry.grid(row=1, column=1, padx=5, sticky='w')
+old_guid_entry = tk.Entry(frame, font=font_style, bg="#444444", fg="white", insertbackground="white")
+old_guid_entry.grid(row=1, column=1, padx=5, sticky='ew')
 tk.Label(frame, text="New GUID:", bg="#2f2f2f", fg="white", font=font_style).grid(row=2, column=0, sticky='w')
-new_guid_entry = tk.Entry(frame, width=40, font=font_style, bg="#444444", fg="white", insertbackground="white")
-new_guid_entry.grid(row=2, column=1, padx=5, sticky='w')
+new_guid_entry = tk.Entry(frame, font=font_style, bg="#444444", fg="white", insertbackground="white")
+new_guid_entry.grid(row=2, column=1, padx=5, sticky='ew')
 def manual_fix():
     level_sav_path = level_file_entry.get().strip()
     old_guid = old_guid_entry.get().strip()
@@ -110,5 +113,7 @@ def manual_fix():
         fix_save(folder_path, new_guid, old_guid)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to fix save:\n{e}")
-tk.Button(frame, text="Apply Manual GUID Swap", command=manual_fix, bg="#555555", fg="white", font=font_style, activebackground="#666666").grid(row=3, column=1, pady=20)
+tk.Button(frame, text="Apply Manual GUID Swap", command=manual_fix, bg="#555555", fg="white", font=font_style, activebackground="#666666").grid(row=3, column=0, columnspan=2, pady=20)
+frame.grid_columnconfigure(0, weight=0)
+frame.grid_columnconfigure(1, weight=1)
 window.mainloop()

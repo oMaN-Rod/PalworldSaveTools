@@ -60,7 +60,8 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     if os.path.exists(new_sav_path): os.remove(new_sav_path)
     os.rename(old_sav_path, new_sav_path)
     messagebox.showinfo("Success", "Fix has been applied! Have fun!")
-    reload_level_file()
+    print(f"Success! Fix has been applied! Have fun!")
+    sys.exit()
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
@@ -123,19 +124,6 @@ def filter_treeview(tree, query):
         values = tree.item(row, "values")
         if not any(query in str(value).lower() for value in values):
             tree.detach(row)
-def reload_level_file():
-    global player_list_cache
-    path = level_sav_entry.get()
-    if not path or not os.path.exists(path): return
-    folder_path = os.path.dirname(path)
-    players_folder = os.path.join(folder_path, "Players")
-    if not os.path.exists(players_folder): return
-    player_list_cache = []
-    populate_player_lists(folder_path)
-    populate_player_tree(old_tree, folder_path)
-    populate_player_tree(new_tree, folder_path)
-    old_search_var.set('')
-    new_search_var.set('')
 def choose_level_file():
     global player_list_cache
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])

@@ -476,10 +476,9 @@ of your save folder before continuing. Press Yes if you would like to continue.'
     backup_whole_directory(os.path.dirname(t_level_sav_path), backup_folder)
     gvas_to_sav(t_level_sav_path, output_data)
     gvas_to_sav(t_host_sav_path, targ_json_gvas.write())
-    messagebox.showinfo(title="Transfer Successful", message='Transfer finished! You may continue transferring more players or close the window now.')
-    auto_reload_source_level()
-    auto_reload_target_level()
-    current_selection_label.config(text=f"Source: None, Target: None")
+    messagebox.showinfo(title="Transfer Successful!", message='Transfer Successful!')
+    print(f"Transfer Successful!")
+    sys.exit()
 def sav_to_gvas(file):
     with open(file, 'rb') as f:
         data = f.read()
@@ -548,22 +547,6 @@ def load_all_source_sections_async(group_save_section, reader):
         ('CharacterContainerSaveData', MAP_START)],
         path='.worldSaveData')
     level_json.update(group_save_section)
-def auto_reload_source_level():
-    global level_sav_path, source_level_path_label, level_json, selected_source_player, source_section_load_handle
-    if not level_sav_path:
-        return
-    raw_gvas, save_type = load_file(level_sav_path)
-    if not raw_gvas:
-        messagebox.showerror(message="Auto reload failed: Invalid .sav file")
-        return
-    reader = MyReader(raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
-    group_save_section, _ = reader.load_section('GroupSaveDataMap', MAP_START, reverse=True)
-    source_section_load_handle = threading.Thread(target=load_all_source_sections_async, args=(group_save_section, reader))
-    source_section_load_handle.start()
-    load_players(group_save_section, True)
-    selected_source_player = None
-    source_level_path_label.config(text=level_sav_path)
-    current_selection_label.config(text=f"Source: {selected_source_player}, Target: {selected_target_player}")
 def source_level_file():
     global level_sav_path, source_level_path_label, level_json, selected_source_player, source_section_load_handle
     tmp = select_file()
@@ -594,21 +577,6 @@ def load_all_target_sections_async(group_save_section, group_save_section_range,
         path='.worldSaveData')
     targ_lvl.update(group_save_section)
     target_section_ranges.append(group_save_section_range)
-def auto_reload_target_level():
-    global t_level_sav_path, target_raw_gvas, target_save_type, targ_lvl, target_section_load_handle, selected_target_player
-    if not t_level_sav_path:
-        return
-    raw_gvas, target_save_type = load_file(t_level_sav_path)
-    if not raw_gvas:
-        messagebox.showerror(message="Auto reload failed: Invalid .sav file")
-        return
-    target_raw_gvas = raw_gvas
-    reader = MyReader(raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
-    group_save_section, group_save_section_range = reader.load_section('GroupSaveDataMap', MAP_START, reverse=True)
-    target_section_load_handle = threading.Thread(target=load_all_target_sections_async, args=(group_save_section, group_save_section_range, reader))
-    target_section_load_handle.start()
-    load_players(group_save_section, False)
-    selected_target_player = None
 def target_level_file():
     global t_level_sav_path, target_level_path_label, targ_lvl, target_level_cache, target_section_ranges, target_raw_gvas, target_save_type, selected_target_player, target_section_load_handle, TARGET_CNK_DATA_HEADER
     tmp = select_file()
