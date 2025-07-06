@@ -45,7 +45,7 @@
 - Provides a **base map view**.  
 - Provides automated killnearestbase commands for PalDefender targeting inactive bases.  
 - Transfers saves between dedicated servers and single/coop worlds.  
-- Fix Host Save via GUI editing.  
+- Fix Host Save via GUID editing.  
 - Includes Steam ID conversion.  
 - Includes coordinate conversion.  
 - Includes GamePass ⇔ Steam conversion.  

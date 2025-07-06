@@ -17,13 +17,13 @@ os.makedirs(log_folder, exist_ok=True)
 log_file = "scan_save.log"
 logging.basicConfig(level=logging.INFO, format='%(message)s',
                     handlers=[
-                        logging.FileHandler(log_file, encoding='utf-8'), 
+                        logging.FileHandler(log_file, encoding='utf-8', errors='replace'), 
                         logging.StreamHandler(sys.stdout)])
 player_log_file = "players.log"
 player_logger = logging.getLogger('playerLogger')
 player_logger.setLevel(logging.INFO)
 player_logger.propagate = False
-player_file_handler = logging.FileHandler(player_log_file, encoding='utf-8')
+player_file_handler = logging.FileHandler(player_log_file, encoding='utf-8', errors='replace')
 player_file_handler.setFormatter(logging.Formatter('%(message)s'))
 player_logger.addHandler(player_file_handler)
 wsd: Optional[dict] = None
@@ -179,7 +179,7 @@ def count_pals_found(data, player_pals_count):
         filtered_non_owner_pals = non_owner_pals_info_with_base
         total_non_owner_pals = len(filtered_non_owner_pals) 
         non_owner_log_file = os.path.join(log_folder, "non_owner_pals.log")
-        with open(non_owner_log_file, 'w', encoding='utf-8') as non_owner_file:
+        with open(non_owner_log_file, 'w', encoding='utf-8', errors='replace') as non_owner_file:
             non_owner_file.write(f"{total_non_owner_pals} Non-Owner Pals\n")
             non_owner_file.write("-" * (len(str(total_non_owner_pals)) + len(" Non-Owner Pals")) + "\n")
             for base_id, pals in base_id_groups.items():
@@ -207,7 +207,7 @@ def count_pals_found(data, player_pals_count):
         owner_logger.setLevel(logging.INFO)
         owner_logger.propagate = False       
         if not owner_logger.hasHandlers():
-            owner_file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            owner_file_handler = logging.FileHandler(log_file, encoding='utf-8', errors='replace')
             owner_file_handler.setFormatter(logging.Formatter('%(message)s'))
             owner_logger.addHandler(owner_file_handler)
         pals_count = sum(len(pals) for pals in pals_by_base_id.values())
@@ -472,12 +472,12 @@ def ShowPlayers():
     logging.info(header_line)
 def resort_player_log(file_path, header_line):
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
             lines = file.readlines()
     except UnicodeDecodeError:
-        with open(file_path, 'r', encoding='latin-1') as file:
+        with open(file_path, 'r', encoding='latin-1', errors='replace') as file:
             lines = file.readlines()
-    with open(file_path, 'w', encoding='utf-8') as file:
+    with open(file_path, 'w', encoding='utf-8', errors='replace') as file:
         file.write(header_line)
         file.writelines(lines)
 def sanitize_filename(filename):
