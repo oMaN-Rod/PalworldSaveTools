@@ -13,15 +13,20 @@ def setup_environment():
         import resource
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
     os.system('cls' if os.name == 'nt' else 'clear')
-    print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
     os.makedirs("PalworldSave/Players", exist_ok=True)
-    if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
+    if not os.path.exists("requirements_installed.flag"):
+        print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
+        if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
+        bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
+        venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
+        sys.executable = venv_python
+        pip_executable = os.path.join("venv", bin_dir, "pip")
+        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
+        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
+        with open("requirements_installed.flag", "w") as f: f.write("done")
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
-    pip_executable = os.path.join("venv", bin_dir, "pip")
-    subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
-    subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
 def get_versions():
     tools_version = "1.0.46"
     game_version = "0.6.1"
