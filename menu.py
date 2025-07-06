@@ -8,6 +8,11 @@ PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
 original_executable = sys.executable
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
+def inside_venv():
+    return (
+        hasattr(sys, 'real_prefix') or
+        (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
+    )
 def setup_environment():
     if sys.platform != "win32":
         import resource
@@ -16,17 +21,19 @@ def setup_environment():
     os.makedirs("PalworldSave/Players", exist_ok=True)
     if not os.path.exists("requirements_installed.flag"):
         print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-        if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
-        bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
+        if not os.path.exists("venv"):
+            subprocess.run([sys.executable, "-m", "venv", "venv"], check=True)
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
         venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
-        sys.executable = venv_python
-        pip_executable = os.path.join("venv", bin_dir, "pip")
-        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
+        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"], check=True)
+        pip_executable = os.path.join("venv", bin_dir, "pip.exe" if os.name == "nt" else "pip")
+        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"], check=True)
         with open("requirements_installed.flag", "w") as f: f.write("done")
-    bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
-    venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
-    sys.executable = venv_python
+    if not inside_venv():
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
+        venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
+        print("Restarting inside virtual environment...")
+        os.execv(venv_python, [venv_python] + sys.argv)
 def get_versions():
     tools_version = "1.0.46"
     game_version = "0.6.1"
