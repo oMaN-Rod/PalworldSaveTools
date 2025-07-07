@@ -90,12 +90,14 @@ def run_tool(choice):
         14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
         15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
         16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_players_guilds.py")]),
-        17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
-        18: reset_update_tools,
-        19: about_tools,
-        20: usage_tools,
-        21: readme_tools,
-        22: sys.exit
+        #17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_bases.py")]),
+        17: lambda: print("Currently in testing phase..."),
+        18: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
+        19: reset_update_tools,
+        20: about_tools,
+        21: usage_tools,
+        22: readme_tools,
+        23: sys.exit
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
 def scan_save():
@@ -181,6 +183,7 @@ management_tools = [
 ]
 cleaning_tools = [
     "Delete Players and Guilds",
+    "Delete Bases",
     "Generate PalDefender killnearestbase commands"
 ]
 pws_tools = [
