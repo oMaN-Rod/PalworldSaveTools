@@ -172,28 +172,28 @@ class SkipGvasFile(GvasFile):
         self.header.write(writer)
         writer.properties(self.properties)
         writer.write(self.trailer)
-        return writer.bytes()
-def main():
-    global host_sav_path, level_sav_path, t_level_sav_path, t_host_sav_path, host_json, level_json, targ_json, targ_lvl
-    if None in [level_sav_path, t_level_sav_path, selected_source_player, selected_target_player]:
+        return writer.bytes()        
+def validate_inputs():
+    if not all([level_sav_path, t_level_sav_path, selected_source_player, selected_target_player]):
         messagebox.showerror(message='Please have both level files and players selected before starting transfer.')
-        return
-    response = messagebox.askyesno(title='WARNING', message='WARNING: Running this script WILL change your target save files and could \
-potentially corrupt your data. It is HIGHLY recommended that you make a backup \
-of your save folder before continuing. Press Yes if you would like to continue.')
-    if not response: return
+        return False
+    response = messagebox.askyesno(title='WARNING', message='WARNING: Running this script WILL change your target save files and could potentially corrupt your data. It is HIGHLY recommended that you make a backup of your save folder before continuing. Press Yes if you would like to continue.')
+    return response
+def load_player_data():
+    global host_json, targ_json, targ_json_gvas
     host_json_gvas = load_player_file(level_sav_path, selected_source_player)
-    if host_json_gvas is None: return
+    if host_json_gvas is None: return False
     host_json = host_json_gvas.properties
     targ_json_gvas = load_player_file(t_level_sav_path, selected_target_player)
-    if targ_json_gvas is None: return
+    if targ_json_gvas is None: return False
     targ_json = targ_json_gvas.properties
-    host_guid = UUID.from_str(selected_source_player)
+    return True
+def find_host_and_pals():
+    global exported_map, param_maps, palcount
+    host_guid = UUID(selected_source_player)
     host_instance_id = host_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
-    pal_player_uid_filters = [b'\x00'*16, b'\x00'*12 + b'\x01\x00\x00\x00'] 
-    count = 0
-    found = 0
-    expected_containers = 7
+    pal_player_uid_filters = [b'\x00'*16, b'\x00'*12 + b'\x01\x00\x00\x00']
+    found = False
     exported_map = {}
     param_maps = []
     palcount = 0
@@ -201,18 +201,19 @@ of your save folder before continuing. Press Yes if you would like to continue.'
         instance_id = character_save_param["key"]["InstanceId"]["value"]
         if instance_id == host_instance_id:
             exported_map = character_save_param
-            count = count + 1
-            found = 1
+            found = True
         elif character_save_param["key"]["PlayerUId"]["value"] in pal_player_uid_filters:
-            if find_id_match_prefix(character_save_param['value']['RawData']['value'],
-                                    OwnerPlayerUIdSearchPrefix) == host_guid:
+            if find_id_match_prefix(character_save_param['value']['RawData']['value'], OwnerPlayerUIdSearchPrefix) == host_guid:
                 param_maps.append(fast_deepcopy(character_save_param))
                 palcount += 1
     if not found:
         messagebox.showerror(message="Couldn't find source character instance data in the source world save")
-        return
-    host_save = host_json["SaveData"]["value"]
-    inv_info = host_save["InventoryInfo"]["value"] if "InventoryInfo" in host_save else host_save["inventoryInfo"]["value"]
+        return False
+    return True
+def gather_host_containers():
+    global inv_main, inv_key, inv_weps, inv_armor, inv_foodbag, inv_pals, inv_otomo
+    global host_main, host_key, host_weps, host_armor, host_foodbag, host_pals, host_otomo, dynamic_guids
+    inv_info = host_json["SaveData"]["value"].get("InventoryInfo", host_json["SaveData"]["value"].get("inventoryInfo"))["value"]
     inv_main = inv_info["CommonContainerId"]
     inv_key = inv_info["EssentialContainerId"]
     inv_weps = inv_info["WeaponLoadOutContainerId"]
@@ -220,71 +221,61 @@ of your save folder before continuing. Press Yes if you would like to continue.'
     inv_foodbag = inv_info["FoodEquipContainerId"]
     inv_pals = host_json["SaveData"]["value"]["PalStorageContainerId"]
     inv_otomo = host_json["SaveData"]["value"]["OtomoCharacterContainerId"]
-    host_main = {}
-    host_key = {}
-    host_weps = {}
-    host_armor = {}
-    host_foodbag = {}
-    host_pals = {}
-    host_otomo = {}
+    host_main = host_key = host_weps = host_armor = host_foodbag = host_pals = host_otomo = {}
     count = 0
     for container in level_json["CharacterContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_pals["value"]["ID"]["value"]:
             host_pals = container
-            count = count + 1
+            count += 1
         elif container_id == inv_otomo["value"]["ID"]["value"]:
             host_otomo = container
-            count = count + 1
-        if count >= 2:
-            break
+            count += 1
+        if count >= 2: break
     dynamic_guids = set()
     for container in level_json["ItemContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_main["value"]["ID"]["value"]:
             dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
             host_main = container
-            count = count + 1
+            count += 1
         elif container_id == inv_key["value"]["ID"]["value"]:
             dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
             host_key = container
-            count = count + 1
+            count += 1
         elif container_id == inv_weps["value"]["ID"]["value"]:
             dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
             host_weps = container
-            count = count + 1
+            count += 1
         elif container_id == inv_armor["value"]["ID"]["value"]:
             dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
             host_armor = container
-            count = count + 1
+            count += 1
         elif container_id == inv_foodbag["value"]["ID"]["value"]:
             dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
             host_foodbag = container
-            count = count + 1
-        if count >= expected_containers:
-            break
+            count += 1
+        if count >= 7: break
     dynamic_guids.discard(b'\x00' * 16)
-    dynamic_container_level_json = level_json['DynamicItemSaveData']['value']['values']
-    level_additional_dynamic_containers = [(dynamic_container, dynamic_container.get('ID', {}).get('value')) for dynamic_container in dynamic_container_level_json]
-    if count < expected_containers:
-        messagebox.showerror(message="Missing container info! Only found " + str(count))
-        return
-    char_instanceid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
-    if "TechnologyPoint" in host_json["SaveData"]["value"]:
-        targ_json["SaveData"]["value"]["TechnologyPoint"] = host_json["SaveData"]["value"]["TechnologyPoint"]
-    elif "TechnologyPoint" in targ_json["SaveData"]["value"]:
-        targ_json["SaveData"]["value"]["TechnologyPoint"]["value"] = 0
-    if "bossTechnologyPoint" in host_json["SaveData"]["value"]:
-        targ_json["SaveData"]["value"]["bossTechnologyPoint"] = host_json["SaveData"]["value"]["bossTechnologyPoint"]
-    elif "bossTechnologyPoint" in targ_json["SaveData"]["value"]:
-        targ_json["SaveData"]["value"]["bossTechnologyPoint"]["value"] = 0
-    targ_json["SaveData"]["value"]["UnlockedRecipeTechnologyNames"] = host_json["SaveData"]["value"]["UnlockedRecipeTechnologyNames"]
-    targ_json["SaveData"]["value"]["PlayerCharacterMakeData"] = host_json["SaveData"]["value"]["PlayerCharacterMakeData"]
-    if 'RecordData' in host_json["SaveData"]["value"]:
-        targ_json["SaveData"]["value"]["RecordData"] = host_json["SaveData"]["value"]["RecordData"]
-    elif 'RecordData' in targ_json["SaveData"]:
+def update_targ_tech_and_data():
+    targ_save = targ_json["SaveData"]["value"]
+    host_save = host_json["SaveData"]["value"]
+    if "TechnologyPoint" in host_save:
+        targ_save["TechnologyPoint"] = host_save["TechnologyPoint"]
+    elif "TechnologyPoint" in targ_save:
+        targ_save["TechnologyPoint"]["value"] = 0
+    if "bossTechnologyPoint" in host_save:
+        targ_save["bossTechnologyPoint"] = host_save["bossTechnologyPoint"]
+    elif "bossTechnologyPoint" in targ_save:
+        targ_save["bossTechnologyPoint"]["value"] = 0
+    targ_save["UnlockedRecipeTechnologyNames"] = host_save["UnlockedRecipeTechnologyNames"]
+    targ_save["PlayerCharacterMakeData"] = host_save["PlayerCharacterMakeData"]
+    if 'RecordData' in host_save:
+        targ_save["RecordData"] = host_save["RecordData"]
+    elif 'RecordData' in targ_save:
         del targ_json['RecordData']
-    target_section_load_handle.join()
+def update_target_character_instance():
+    char_instanceid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
     found = False
     for i, char_save_instance in enumerate(targ_lvl["CharacterSaveParameterMap"]["value"]):
         instance_id = char_save_instance["key"]["InstanceId"]["value"]
@@ -294,20 +285,14 @@ of your save folder before continuing. Press Yes if you would like to continue.'
             break
     if not found:
         messagebox.showerror(message="Couldn't find target character instance in target world save.")
-        return
-    targ_save = targ_json["SaveData"]["value"]
-    inv_info = targ_save["InventoryInfo"]["value"] if "InventoryInfo" in targ_save else targ_save["inventoryInfo"]["value"]
-    inv_main = inv_info["CommonContainerId"]
-    inv_key = inv_info["EssentialContainerId"]
-    inv_weps = inv_info["WeaponLoadOutContainerId"]
-    inv_armor = inv_info["PlayerEquipArmorContainerId"]
-    inv_foodbag = inv_info["FoodEquipContainerId"]
-    host_inv_pals = inv_pals
-    host_inv_otomo = inv_otomo
+        return False
+    return True
+def update_guild_data(targ_json, targ_lvl, keep_old_guild_id, host_guid, source_guild_dict):
     inv_pals = targ_json["SaveData"]["value"]["PalStorageContainerId"]
     inv_otomo = targ_json["SaveData"]["value"]["OtomoCharacterContainerId"]
     group_id = None
     targ_uid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["PlayerUId"]["value"]
+    guild_item_instances = set()
     if not keep_old_guild_id:
         for group_data in targ_lvl["GroupSaveDataMap"]["value"]:
             if group_data["value"]["GroupType"]["value"]["value"] == "EPalGroupType::Guild":
@@ -316,11 +301,11 @@ of your save folder before continuing. Press Yes if you would like to continue.'
                 if targ_uid in [p['player_uid'] for p in players_list]:
                     group_id = raw_data.get('group_id')
                     guild_items_json = raw_data.get("individual_character_handle_ids", [])
+                    guild_item_instances = {guild_item['instance_id'] for guild_item in guild_items_json}
                     break
         if group_id is None:
             messagebox.showerror(message='Guild ID not found, aborting')
-            return
-        guild_item_instances = {guild_item['instance_id'] for guild_item in guild_items_json}
+            return False, None, None
     else:
         for group_idx, group_data in enumerate(targ_lvl["GroupSaveDataMap"]["value"]):
             if group_data["value"]["GroupType"]["value"]["value"] == "EPalGroupType::Guild" and group_data["key"] not in source_guild_dict:
@@ -358,7 +343,7 @@ of your save folder before continuing. Press Yes if you would like to continue.'
                     for character_handle_id in raw_data.get("individual_character_handle_ids", []):
                         if character_handle_id['guid'] == host_guid:
                             character_handle_id['guid'] = targ_uid
-                            character_handle_id['instance_id'] = char_instanceid
+                            character_handle_id['instance_id'] = targ_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
                             break
                     if raw_data.get("admin_player_uid") == host_guid:
                         raw_data["admin_player_uid"] = targ_uid
@@ -376,7 +361,7 @@ of your save folder before continuing. Press Yes if you would like to continue.'
                     break
             if old_guild is None:
                 messagebox.showerror(message="No guild containing the source player is found in the source either, either this is a bug or the files are corrupted. Aborting.")
-                return
+                return False, None, None
             group_id = old_guild["key"]
             raw_data = old_guild["value"]["RawData"]["value"]
             if raw_data.get("admin_player_uid") == host_guid:
@@ -388,9 +373,11 @@ of your save folder before continuing. Press Yes if you would like to continue.'
             for character_handle_id in raw_data.get("individual_character_handle_ids", []):
                 if character_handle_id['guid'] == host_guid:
                     character_handle_id['guid'] = targ_uid
-                    character_handle_id['instance_id'] = char_instanceid
+                    character_handle_id['instance_id'] = targ_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
                     break
             targ_lvl["GroupSaveDataMap"]["value"].append(old_guild)
+    return True, group_id, guild_item_instances
+def patch_pal_data():
     for pal_param in param_maps:
         pal_data = pal_param['value']['RawData']['value']
         slot_id_idx = pal_data.find(b'\x07\x00\x00\x00SlotID\x00\x0f\x00\x00\x00StructProperty\x00')
@@ -406,9 +393,8 @@ of your save folder before continuing. Press Yes if you would like to continue.'
         pal_data_bytearray[-16:] = group_id
         pal_param['value']['RawData']['value'] = bytes(pal_data_bytearray)
         if not keep_old_guild_id and pal_param["key"]["InstanceId"]["value"] not in guild_item_instances:
-            guild_items_json.append(
-                {"guid": pal_param["key"]["PlayerUId"]["value"],
-                 "instance_id": pal_param["key"]["InstanceId"]["value"]})
+            guild_items_json.append({"guid": pal_param["key"]["PlayerUId"]["value"], "instance_id": pal_param["key"]["InstanceId"]["value"]})
+def replace_character_save_params(targ_lvl, param_maps, targ_uid, OwnerPlayerUIdSearchPrefix):
     new_character_save_param_map = []
     removed = 0
     for entity in targ_lvl["CharacterSaveParameterMap"]["value"]:
@@ -418,21 +404,20 @@ of your save folder before continuing. Press Yes if you would like to continue.'
         new_character_save_param_map.append(entity)
     new_character_save_param_map += param_maps
     targ_lvl["CharacterSaveParameterMap"]["value"] = new_character_save_param_map
-    count = 0    
+def replace_containers():
+    global targ_lvl, inv_pals, inv_otomo, host_pals, host_otomo
+    global inv_main, inv_key, inv_weps, inv_armor, inv_foodbag
+    global host_main, host_key, host_weps, host_armor, host_foodbag
+    count = 0
     for container in targ_lvl["CharacterContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_pals["value"]["ID"]["value"]:
-            target_slot_data = container['value']['Slots']['value']
-            source_slot_data = host_pals['value']['Slots']['value']            
-            container['value']['Slots']['value'] = source_slot_data                      
+            container['value']['Slots']['value'] = host_pals['value']['Slots']['value']
             count += 1
         elif container_id == inv_otomo["value"]["ID"]["value"]:
-            target_slot_data = container['value']['Slots']['value']
-            source_slot_data = host_otomo['value']['Slots']['value']
-            container['value']['Slots']['value'] = source_slot_data                  
-            count += 1            
-        if count >= 2:
-            break
+            container['value']['Slots']['value'] = host_otomo['value']['Slots']['value']
+            count += 1
+        if count >= 2: break
     for container in targ_lvl["ItemContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_main["value"]["ID"]["value"]:
@@ -450,35 +435,73 @@ of your save folder before continuing. Press Yes if you would like to continue.'
         elif container_id == inv_foodbag["value"]["ID"]["value"]:
             container["value"] = host_foodbag["value"]
             count += 1
-        if count >= expected_containers:
-            break
+        if count >= 7: break
+def update_dynamic_containers():
+    global level_additional_dynamic_containers
     target_dynamic_containers = targ_lvl['DynamicItemSaveData']['value']['values']
     repeated_indices = set()
     for i, target_dynamic_container in enumerate(target_dynamic_containers):
-            target_container_id = target_dynamic_container.get('ID')
-            if target_container_id is None:
-                continue
-            target_guid = find_id_match_prefix(target_container_id['value'], LocalIdSearchPrefix)
-            if target_guid in dynamic_guids:
-                for j, (dynamic_container, container_local_id) in enumerate(level_additional_dynamic_containers):
-                    if target_guid == container_local_id:
-                        target_dynamic_containers[i] = dynamic_container
-                        repeated_indices.add(j)
-                        break
+        target_container_id = target_dynamic_container.get('ID')
+        if target_container_id is None:
+            continue
+        target_guid = find_id_match_prefix(target_container_id['value'], LocalIdSearchPrefix)
+        if target_guid in dynamic_guids:
+            for j, (dynamic_container, container_local_id) in enumerate(level_additional_dynamic_containers):
+                if target_guid == container_local_id:
+                    target_dynamic_containers[i] = dynamic_container
+                    repeated_indices.add(j)
+                    break
     targ_lvl['DynamicItemSaveData']['value']['values'] += [container for i, (container, local_id) in enumerate(level_additional_dynamic_containers) if i not in repeated_indices]
+def sync_inventory_to_targ_json():
+    save_data = targ_json["SaveData"]["value"]
+    save_data["InventoryInfo"] = host_json["SaveData"]["value"].get("InventoryInfo", host_json["SaveData"]["value"].get("inventoryInfo"))
+    save_data["PalStorageContainerId"] = host_json["SaveData"]["value"]["PalStorageContainerId"]
+    save_data["OtomoCharacterContainerId"] = host_json["SaveData"]["value"]["OtomoCharacterContainerId"]
+def save_and_backup():
+    global targ_json_gvas
     WORLDSAVESIZEPREFIX = b'\x0e\x00\x00\x00worldSaveData\x00\x0f\x00\x00\x00StructProperty\x00'
     size_idx = target_raw_gvas.find(WORLDSAVESIZEPREFIX) + len(WORLDSAVESIZEPREFIX)
     output_data = MyWriter(custom_properties=PALWORLD_CUSTOM_PROPERTIES).write_sections(targ_lvl, target_section_ranges, target_raw_gvas, size_idx)
+    from scan_save import GvasFile
+    if targ_json_gvas is None or not hasattr(targ_json_gvas, 'header'):
+        targ_json_gvas = load_player_file(t_level_sav_path, selected_target_player)
+        if targ_json_gvas is None:
+            raise RuntimeError("Failed to load target player's GvasFile for saving.")
     targ_json_gvas.properties = targ_json
     t_host_sav_path = os.path.join(os.path.dirname(t_level_sav_path), 'Players', selected_target_player + '.sav')
-    if not os.path.exists(t_host_sav_path): t_host_sav_path = os.path.join(os.path.dirname(t_level_sav_path), '../Players', selected_target_player + '.sav')
+    if not os.path.exists(t_host_sav_path):
+        t_host_sav_path = os.path.join(os.path.dirname(t_level_sav_path), '../Players', selected_target_player + '.sav')
     backup_folder = "Backups/Character Transfer"
     backup_whole_directory(os.path.dirname(t_level_sav_path), backup_folder)
     gvas_to_sav(t_level_sav_path, output_data)
     gvas_to_sav(t_host_sav_path, targ_json_gvas.write())
+def main():
+    if not validate_inputs(): return
+    global host_guid, host_instance_id, exported_map, param_maps, palcount
+    global host_main, host_key, host_weps, host_armor, host_foodbag
+    global host_pals, host_otomo, dynamic_guids, inv_pals, inv_otomo
+    global targ_uid, group_id, guild_item_instances, guild_items_json
+    global host_inv_pals, host_inv_otomo, level_additional_dynamic_containers
+    host_guid = UUID.from_str(selected_source_player)
+    if not load_player_data(): return
+    if not find_host_and_pals(): return
+    gather_host_containers()
+    update_targ_tech_and_data()
+    if not update_target_character_instance(): return
+    if not update_guild_data(targ_json, targ_lvl, keep_old_guild_id, host_guid, source_guild_dict): return
+    patch_pal_data()
+    targ_uid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["PlayerUId"]["value"]
+    host_inv_pals = host_pals
+    host_inv_otomo = host_otomo
+    if 'level_additional_dynamic_containers' not in globals():
+        level_additional_dynamic_containers = []
+    replace_character_save_params(targ_lvl, param_maps, targ_uid, OwnerPlayerUIdSearchPrefix)
+    replace_containers()
+    sync_inventory_to_targ_json()
+    update_dynamic_containers()
+    save_and_backup()
+    print("Transfer Successful!")
     messagebox.showinfo(title="Transfer Successful!", message='Transfer Successful!')
-    print(f"Transfer Successful!")
-    sys.exit()
 def sav_to_gvas(file):
     with open(file, 'rb') as f:
         data = f.read()
@@ -719,7 +742,7 @@ target_player_list.bind('<<TreeviewSelect>>', on_selection_of_target_player)
 current_selection_label = tk.Label(root, text=f"Source: N/A, Target: N/A", font=font_style, bg="#2f2f2f", fg="white", wraplength=600)
 current_selection_label.grid(row=8, column=0, padx=10, pady=20, sticky="ew")
 tk.Button(root, text='Start Transfer!', font=font_style, command=main).grid(row=8, column=1, padx=10, pady=20, sticky="ew")
-checkbox_var = tk.IntVar()
+checkbox_var = tk.IntVar(value=1)
 keep_old_guild_check = tk.Checkbutton(
     root, 
     text="Keep old Guild ID after Transfer", 

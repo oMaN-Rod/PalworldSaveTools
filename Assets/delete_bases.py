@@ -214,6 +214,16 @@ def delete_selected_guild():
     if not sel: messagebox.showerror("Error", "Select guild"); return
     gid = guild_tree.item(sel[0])['values'][1]
     wsd = loaded_level_json['properties']['worldSaveData']['value']
+    players_folder = os.path.join(current_save_path, 'Players')
+    deleted_uids = set()
+    for g in wsd.get('GroupSaveDataMap', {}).get('value', []):
+        if are_equal_uuids(g['key'], gid):
+            for p in g['value']['RawData']['value'].get('players', []):
+                deleted_uids.add(str(p.get('player_uid', '')).replace('-', ''))
+            break
+    for uid in deleted_uids:
+        f = os.path.join(players_folder, uid + '.sav')
+        if os.path.exists(f): os.remove(f)
     for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
         if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
             delete_base_camp(b, gid, loaded_level_json)
@@ -279,7 +289,7 @@ def delete_selected_player():
     else:
         messagebox.showinfo("Info", "Player not found or already deleted.")
 def delete_inactive_bases():
-    d = simpledialog.askstring("Delete Inactive Bases", "Delete bases where ALL players inactive for how many days?")
+    d = simpledialog.askinteger("Delete Inactive Bases", "Delete bases where ALL players inactive for how many days?")
     if d is None: return
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
@@ -347,9 +357,8 @@ def delete_inactive_players(folder_path, inactive_days=30):
             days_offline = seconds_offline / 86400
             if days_offline >= inactive_days:
                 player_path = os.path.join(players_folder, player_uid + '.sav')
-                if os.path.exists(player_path):
-                    os.remove(player_path)
-                    deleted_info.append(f"{player_name} ({player_uid}) - Inactive for {format_duration(seconds_offline)}")
+                if os.path.exists(player_path): os.remove(player_path)
+                deleted_info.append(f"{player_name} ({player_uid}) - Inactive for {format_duration(seconds_offline)}")
                 char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
                 char_save_map[:] = [entry for entry in char_save_map
                                    if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != player_uid]
@@ -391,8 +400,7 @@ def on_guild_members_search(event=None):
                     guild_members_tree.insert("", "end", values=(p_name, p_level, p_uid))
             break
 def on_guild_member_select(event=None):
-    pass  # Add code to handle guild member selection
-    
+    pass    
 window = tk.Tk()
 window.title("All in One Deletion Tool")
 window.geometry("1200x700")
@@ -430,26 +438,22 @@ def create_search_panel(parent, label_text, search_var, search_callback, tree_co
         tree.heading(col, text=head)
         tree.column(col, width=width_col, anchor='w')
     return panel, tree, entry
-
 guild_search_var = tk.StringVar()
 gframe, guild_tree, guild_search_entry = create_search_panel(window, "Search Guilds:", guild_search_var, on_guild_search,
     ("Name","ID"), ("Guild Name","Guild ID"), (130,130), 310, 600)
 gframe.place(x=10,y=40)
 guild_tree.bind("<<TreeviewSelect>>", on_guild_select)
-
 base_search_var = tk.StringVar()
 bframe, base_tree, base_search_entry = create_search_panel(window, "Search Bases:", base_search_var, on_base_search,
     ("ID",), ("Base ID",), (280,), 310, 280)
 bframe.place(x=330,y=40)
 base_tree.bind("<<TreeviewSelect>>", on_base_select)
-
 guild_members_search_var = tk.StringVar()
 gm_frame, guild_members_tree, guild_members_search_entry = create_search_panel(
     window, "Guild Members:", guild_members_search_var, on_guild_members_search,
     ("Name", "Level", "UID"), ("Member", "Level", "UID"), (100, 50, 140), 310, 320)
 gm_frame.place(x=330, y=320)
 guild_members_tree.bind("<<TreeviewSelect>>", on_guild_member_select)
-
 player_search_var = tk.StringVar()
 pframe, player_tree, player_search_entry = create_search_panel(
     window, "Search Players:", player_search_var, on_player_search,
@@ -459,35 +463,28 @@ pframe, player_tree, player_search_entry = create_search_panel(
     540, 600)
 pframe.place(x=650,y=40)
 player_tree.bind("<<TreeviewSelect>>", on_player_select)
-
 guild_result=tk.Label(window,text="Selected Guild: N/A",bg="#2f2f2f",fg="white",font=font)
 guild_result.place(x=10,y=10)
 base_result=tk.Label(window,text="Selected Base: N/A",bg="#2f2f2f",fg="white",font=font)
 base_result.place(x=330,y=10)
 player_result=tk.Label(window,text="Selected Player: N/A",bg="#2f2f2f",fg="white",font=font)
 player_result.place(x=650,y=10)
-
 btn_save_changes = ttk.Button(window, text="Save Changes", command=save_changes, style="Dark.TButton")
 btn_save_changes.place(x=650 + 540 - 5 - btn_save_changes.winfo_reqwidth(), y=10)
 window.update_idletasks()
-
 btn_load_save = ttk.Button(window, text="Load Level.sav", command=load_save, style="Dark.TButton")
 btn_load_save.place(x=btn_save_changes.winfo_x() - 10 - btn_load_save.winfo_reqwidth(), y=10)
 window.update_idletasks()
-
 btn_delete_guild = ttk.Button(window, text="Delete Selected Guild", command=delete_selected_guild, style="Dark.TButton")
 btn_delete_guild.place(x=20, y=40 + 600 + 10)
 btn_delete_empty_guilds = ttk.Button(window, text="Delete Empty Guilds", command=delete_empty_guilds, style="Dark.TButton")
 btn_delete_empty_guilds.place(x=20 + btn_delete_guild.winfo_reqwidth() + 10, y=40 + 600 + 10)
-
 btn_delete_base = ttk.Button(window, text="Delete Selected Base", command=delete_selected_base, style="Dark.TButton")
 btn_delete_base.place(x=330 + 5, y=40 + 600 + 10)
 btn_delete_inactive_bases = ttk.Button(window, text="Delete Inactive Bases", command=delete_inactive_bases, style="Dark.TButton")
 btn_delete_inactive_bases.place(x=330 + 310 - 5 - btn_delete_inactive_bases.winfo_reqwidth(), y=40 + 600 + 10)
-
 btn_delete_player = ttk.Button(window, text="Delete Selected Player", command=delete_selected_player, style="Dark.TButton")
 btn_delete_player.place(x=650 + (540 // 4) - (btn_delete_player.winfo_reqwidth() // 2), y=40 + 600 + 10)
 btn_delete_inactive_players = ttk.Button(window, text="Delete Inactive Players", command=delete_inactive_players_button, style="Dark.TButton")
 btn_delete_inactive_players.place(x=650 + (540 * 3 // 4) - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=40 + 600 + 10)
-
 window.mainloop()
