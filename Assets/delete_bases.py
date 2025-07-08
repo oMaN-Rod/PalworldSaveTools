@@ -27,6 +27,27 @@ def json_to_sav(j,path):
     t = 0x32 if "Pal.PalworldSaveGame" in g.header.save_game_class_name else 0x31
     data = compress_gvas_to_sav(g.write(SKP_PALWORLD_CUSTOM_PROPERTIES),t)
     with open(path,"wb") as f: f.write(data)
+def clean_character_save_parameter_map(data_source, valid_uids):
+    if "CharacterSaveParameterMap" not in data_source: return
+    entries = data_source["CharacterSaveParameterMap"].get("value", [])
+    keep = []
+    for entry in entries:
+        key = entry.get("key", {})
+        value = entry.get("value", {}).get("RawData", {}).get("value", {})
+        saveparam = value.get("object", {}).get("SaveParameter", {}).get("value", {})
+        inst_id = key.get("InstanceId", {}).get("value", "")
+        owner_uid_obj = saveparam.get("OwnerPlayerUId")
+        if owner_uid_obj is None:
+            keep.append(entry)
+            continue
+        owner_uid = owner_uid_obj.get("value", "")
+        no_owner = owner_uid in ("", "00000000-0000-0000-0000-000000000000")
+        player_uid = key.get("PlayerUId", {}).get("value", "")
+        if (player_uid and str(player_uid).replace("-", "") in valid_uids) or \
+           (str(owner_uid).replace("-", "") in valid_uids) or \
+           no_owner:
+            keep.append(entry)
+    entries[:] = keep
 def load_save():
     global current_save_path, loaded_level_json, backup_save_path
     p = filedialog.askopenfilename(title="Select Level.sav", filetypes=[("SAV","*.sav")])
@@ -64,23 +85,28 @@ def refresh_all():
             guild_tree.insert("","end",values=(name,gid))
     for uid,name,gid,seen in get_players():
         player_tree.insert("","end",values=(uid,name,gid,seen))
-def on_guild_search(evt):
-    q=guild_search_var.get().lower()
-    for iid in guild_tree.get_children():
-        v=guild_tree.item(iid)['values']; guild_tree.item(iid, tags=() if q in str(v[0]).lower() or q in v[1] else ("hid",))
-    guild_tree.tag_configure("hid", foreground="#555")
-def on_base_search(evt):
-    q=base_search_var.get().lower()
-    for iid in base_tree.get_children():
-        v=base_tree.item(iid)['values']; base_tree.item(iid,tags=() if q in v[0].lower() else("h",))
-    base_tree.tag_configure("h",foreground="#555")
-def on_player_search(evt):
-    q=player_search_var.get().lower()
-    for iid in player_tree.get_children():
-        v=player_tree.item(iid)['values']
-        show=any(q in str(c).lower() for c in v)
-        player_tree.item(iid, tags=() if show else("h",))
-    player_tree.tag_configure("h",foreground="#555")
+def on_guild_search(evt=None):
+    q = guild_search_var.get().lower()
+    guild_tree.delete(*guild_tree.get_children())
+    for g in loaded_level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']:
+        if g['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
+        name = g['value']['RawData']['value'].get('guild_name', 'Unknown')
+        gid = as_uuid(g['key'])
+        if q in name.lower() or q in gid.lower():
+            guild_tree.insert("", "end", values=(name, gid))
+def on_base_search(evt=None):
+    q = base_search_var.get().lower()
+    base_tree.delete(*base_tree.get_children())
+    for b in loaded_level_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value']:
+        bid = str(b['key'])
+        if q in bid.lower():
+            base_tree.insert("", "end", values=(bid,))
+def on_player_search(evt=None):
+    q = player_search_var.get().lower()
+    player_tree.delete(*player_tree.get_children())
+    for uid, name, gid, seen in get_players():
+        if any(q in str(c).lower() for c in (uid, name, gid, seen)):
+            player_tree.insert("", "end", values=(uid, name, gid, seen))
 def on_guild_select(evt):
     sel=guild_tree.selection()
     if not sel: return
@@ -102,8 +128,7 @@ def delete_map_object(instance_id, base_camp_id, loaded_json):
         m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('base_camp_id_belong_to') == base_camp_id
     )]
     after_count = len(mod_list)
-    if before_count != after_count:
-        print(f"Deleted MapObject instance {instance_id} belonging to base camp {base_camp_id}")
+    #if before_count != after_count: print(f"Deleted MapObject instance {instance_id} belonging to base camp {base_camp_id}")
 def delete_base_camp(base, guild_id, loaded_json):
     base_val = base['value']
     raw_data = base_val.get('RawData', {}).get('value', {})
@@ -137,38 +162,94 @@ def delete_base_camp(base, guild_id, loaded_json):
     for b in base_list: print("-", b['key'])
     return True
 def delete_selected_guild():
-    sel=guild_tree.selection()
-    if not sel: messagebox.showerror("Error","Select guild"); return
-    gid=guild_tree.item(sel[0])['values'][1]
-    backup_whole_directory(backup_save_path,"Backups/DeleteGuild")
-    wsd=loaded_level_json['properties']['worldSaveData']['value']
-    for b in wsd['BaseCampSaveData']['value'][:]:
+    global loaded_level_json
+    sel = guild_tree.selection()
+    if not sel: messagebox.showerror("Error", "Select guild"); return
+    gid = guild_tree.item(sel[0])['values'][1]
+    backup_whole_directory(backup_save_path, "Backups/DeleteGuild")
+    level_sav_path = os.path.join(current_save_path, "Level.sav")
+    wsd = loaded_level_json['properties']['worldSaveData']['value']
+    for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
         if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
             delete_base_camp(b, gid, loaded_level_json)
-    wsd['GroupSaveDataMap']['value'] = [g for g in wsd['GroupSaveDataMap']['value'] if as_uuid(g['key']) != gid]
-    json_to_sav(loaded_level_json,os.path.join(current_save_path,"Level.sav"))
-    messagebox.showinfo("Deleted","Guild and bases deleted")
+    guilds = wsd.get('GroupSaveDataMap', {}).get('value', [])
+    wsd['GroupSaveDataMap']['value'] = [g for g in guilds if not are_equal_uuids(g['key'], gid)]
+    valid_uids = {
+        str(p.get('player_uid', '')).replace('-', '')
+        for g in wsd['GroupSaveDataMap']['value']
+        if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+        for p in g['value']['RawData']['value'].get('players', [])
+    }
+    clean_character_save_parameter_map(wsd, valid_uids)
+    json_to_sav(loaded_level_json, level_sav_path)
+    loaded_level_json = sav_to_json(level_sav_path)
     refresh_all()
+    messagebox.showinfo("Deleted", "Guild, players, and all their pals successfully deleted")
 def delete_selected_base():
-    sel=base_tree.selection()
-    if not sel: messagebox.showerror("Error","Select base"); return
-    bid=base_tree.item(sel[0])['values'][0]
-    backup_whole_directory(backup_save_path,"Backups/DeleteBase")
+    global loaded_level_json
+    sel = base_tree.selection()
+    if not sel: messagebox.showerror("Error", "Select base"); return
+    bid = base_tree.item(sel[0])['values'][0]
+    backup_whole_directory(backup_save_path, "Backups/DeleteBase")
     for b in loaded_level_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value'][:]:
         if str(b['key']) == bid:
             delete_base_camp(b, b['value']['RawData']['value'].get('group_id_belong_to'), loaded_level_json)
             break
-    json_to_sav(loaded_level_json,os.path.join(current_save_path,"Level.sav"))
-    messagebox.showinfo("Deleted","Base deleted"); refresh_all()
+    json_to_sav(loaded_level_json, os.path.join(current_save_path, "Level.sav"))
+    loaded_level_json = sav_to_json(os.path.join(current_save_path, "Level.sav"))
+    refresh_all()
+    messagebox.showinfo("Deleted", "Base deleted")
 def delete_selected_player():
+    global loaded_level_json
     sel=player_tree.selection()
     if not sel: messagebox.showerror("Error","Select player"); return
-    uid=player_tree.item(sel[0])['values'][0]
+    uid=player_tree.item(sel[0])['values'][0].replace('-', '')
     backup_whole_directory(backup_save_path,"Backups/DeletePlayer")
-    pfile=os.path.join(current_save_path,"Players",uid+".sav")
-    if os.path.exists(pfile): os.remove(pfile)
-    messagebox.showinfo("Deleted","Player file deleted"); refresh_all()
+    level_sav_path = os.path.join(current_save_path, 'Level.sav')
+    players_folder = os.path.join(current_save_path, 'Players')
+    if not os.path.exists(level_sav_path) or not os.path.exists(players_folder): return
+    level_json = sav_to_json(level_sav_path)
+    wsd = level_json['properties']['worldSaveData']['value']
+    group_data_list = wsd['GroupSaveDataMap']['value']
+    deleted = False
+    for group in group_data_list:
+        if group['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
+        raw = group['value']['RawData']['value']
+        original_players = raw.get('players', [])
+        keep_players = []
+        for player in original_players:
+            player_uid = str(player.get('player_uid','')).replace('-', '')
+            if player_uid == uid:
+                player_path = os.path.join(players_folder, player_uid + '.sav')
+                if os.path.exists(player_path): os.remove(player_path)
+                deleted = True
+            else:
+                keep_players.append(player)
+        if len(keep_players) != len(original_players):
+            raw['players'] = keep_players
+            admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
+            keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
+            if admin_uid not in keep_uids:
+                raw['admin_player_uid'] = ""
+    if deleted:
+        char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+        char_save_map[:] = [entry for entry in char_save_map
+                           if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
+        valid_uids = {
+            str(p.get('player_uid', '')).replace('-', '')
+            for g in wsd['GroupSaveDataMap']['value']
+            if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+            for p in g['value']['RawData']['value'].get('players', [])
+        }
+        clean_character_save_parameter_map(wsd, valid_uids)
+        json_to_sav(level_json, level_sav_path)
+        loaded_level_json = sav_to_json(os.path.join(current_save_path, "Level.sav"))
+        refresh_all()
+        messagebox.showinfo("Deleted", "Player deleted successfully!")
+    else:
+        messagebox.showinfo("Info", "Player not found or already deleted.")
 def delete_inactive():
+    global loaded_level_json
     d = simpledialog.askinteger("Days", "Delete bases where ALL players inactive for days?")
     if d is None: return
     backup_whole_directory(backup_save_path, "Backups/DeleteInactive")
@@ -181,22 +262,20 @@ def delete_inactive():
         for p in g['value']['RawData']['value'].get('players', []):
             last_online = p.get('player_info', {}).get('last_online_real_time')
             if last_online is None:
-                allold = False
-                break
+                allold = False; break
             days_offline = ((tick - last_online) / 1e7) / 86400
             if days_offline < d:
-                allold = False
-                break
+                allold = False; break
         if allold: to_clear.append(as_uuid(g['key']))
     cnt = 0
     for b in wsd['BaseCampSaveData']['value'][:]:
         gid = as_uuid(b['value']['RawData']['value'].get('group_id_belong_to'))
         if gid in to_clear:
-            if delete_base_camp(b, gid, loaded_level_json):
-                cnt += 1
+            if delete_base_camp(b, gid, loaded_level_json): cnt += 1
     json_to_sav(loaded_level_json, os.path.join(current_save_path, "Level.sav"))
+    loaded_level_json = sav_to_json(os.path.join(current_save_path, "Level.sav"))
+    refresh_all()
     messagebox.showinfo("Done", f"Deleted {cnt} bases")
-    refresh_all() 
 def on_player_select(evt):
     sel = player_tree.selection()
     if not sel: return
@@ -211,8 +290,8 @@ def delete_inactive_players_button():
         return
     backup_whole_directory(folder, "Backups/DeleteInactivePlayers")
     delete_inactive_players(folder, inactive_days=d)
-    refresh_all()
 def delete_inactive_players(folder_path, inactive_days=30):
+    global loaded_level_json
     level_sav_path = os.path.join(folder_path, 'Level.sav')
     players_folder = os.path.join(folder_path, 'Players')
     if not os.path.exists(level_sav_path) or not os.path.exists(players_folder): return
@@ -227,12 +306,11 @@ def delete_inactive_players(folder_path, inactive_days=30):
         original_players = raw.get('players', [])
         keep_players = []
         for player in original_players:
-            player_uid = str(player.get('player_uid','')).replace('-', '')
+            player_uid = str(player.get('player_uid', '')).replace('-', '')
             player_name = player.get('player_info', {}).get('player_name', 'Unknown')
             last_online = player.get('player_info', {}).get('last_online_real_time')
             if last_online is None:
-                keep_players.append(player)
-                continue
+                keep_players.append(player); continue
             seconds_offline = (tick_now - last_online) / 1e7
             days_offline = seconds_offline / 86400
             if days_offline >= inactive_days:
@@ -240,6 +318,9 @@ def delete_inactive_players(folder_path, inactive_days=30):
                 if os.path.exists(player_path):
                     os.remove(player_path)
                     deleted_info.append(f"{player_name} ({player_uid}) - Inactive for {format_duration(seconds_offline)}")
+                char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+                char_save_map[:] = [entry for entry in char_save_map
+                                   if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != player_uid]
             else:
                 keep_players.append(player)
         if len(keep_players) != len(original_players):
@@ -249,7 +330,16 @@ def delete_inactive_players(folder_path, inactive_days=30):
             if admin_uid not in keep_uids:
                 raw['admin_player_uid'] = ""
     if deleted_info:
+        valid_uids = {
+            str(p.get('player_uid', '')).replace('-', '')
+            for g in wsd['GroupSaveDataMap']['value']
+            if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+            for p in g['value']['RawData']['value'].get('players', [])
+        }
+        clean_character_save_parameter_map(wsd, valid_uids)
         json_to_sav(level_json, level_sav_path)
+        loaded_level_json = sav_to_json(level_sav_path)
+        refresh_all()
         messagebox.showinfo("Success", f"Deleted {len(deleted_info)} inactive player(s)!")
     else:
         messagebox.showinfo("Info", "No inactive players found for deletion.")
