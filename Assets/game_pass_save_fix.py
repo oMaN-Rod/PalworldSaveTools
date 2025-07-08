@@ -121,7 +121,7 @@ def convert_sav_JSON(saveName):
     save_path = f"./saves/{saveName}/Level/01.sav"
     if not os.path.exists(save_path): return None
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "convert.py")
+    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_save_tools", "commands", "convert.py")
     command = [python_exe, convert_path, save_path]
     subprocess.run(command, check=True)
     return saveName
@@ -129,7 +129,7 @@ def convert_JSON_sav(saveName):
     print(saveName)
     print(f"Converting JSON file to .sav: {saveName}")
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "convert.py")
+    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_save_tools", "commands", "convert.py")
     command = [python_exe, convert_path, f"./saves/{saveName}/Level/01.sav.json", "--output", f"./saves/{saveName}/Level.sav"]
     try:
         subprocess.run(command, check=True)
