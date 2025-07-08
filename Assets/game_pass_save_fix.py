@@ -1,13 +1,4 @@
-import os
-import shutil
-import threading
-import subprocess
-import zipfile
-import random
-import string
-import customtkinter
-from tkinter import messagebox, filedialog
-from PIL import Image
+from import_libs import *
 saves = []
 save_extractor_done = threading.Event()
 save_converter_done = threading.Event()
@@ -118,24 +109,24 @@ def unzip_file(zip_file_path, extract_to_folder):
         zip_ref.extractall(extract_to_folder)
     print(f"Extracted all files to {extract_to_folder}")
 def convert_sav_JSON(saveName):
-    save_path = f"./saves/{saveName}/Level/01.sav"
+    save_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav")
     if not os.path.exists(save_path): return None
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_save_tools", "commands", "convert.py")
-    command = [python_exe, convert_path, save_path]
-    subprocess.run(command, check=True)
+    command = [python_exe, "-m", "palworld_save_tools.commands.convert", save_path]
+    subprocess.run(command, check=True, cwd="Assets")
     return saveName
 def convert_JSON_sav(saveName):
     print(saveName)
     print(f"Converting JSON file to .sav: {saveName}")
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    convert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_save_tools", "commands", "convert.py")
-    command = [python_exe, convert_path, f"./saves/{saveName}/Level/01.sav.json", "--output", f"./saves/{saveName}/Level.sav"]
+    json_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav.json")
+    output_path = os.path.abspath(f"./saves/{saveName}/Level.sav")
+    command = [python_exe, "-m", "palworld_save_tools.commands.convert", json_path, "--output", output_path]
     try:
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, cwd="Assets")
         print("Command executed successfully")
-        os.remove(f"./saves/{saveName}/Level/01.sav.json")
-        print(f"Deleted JSON file: ./saves/{saveName}/Level/01.sav.json")
+        os.remove(json_path)
+        print(f"Deleted JSON file: {json_path}")
         move_save_steam(saveName)
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {e}")
@@ -209,7 +200,6 @@ y = (screen_height // 2) - (app_height // 2)
 window.geometry(f"{app_width}x{app_height}+{x}+{y}")
 xgp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "xgp.png")
 steam_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "steam.png")
-icon_size = (60, 30)
 xgp_img = customtkinter.CTkImage(dark_image=Image.open(xgp_path).resize((60, 30)), size=(60, 30))
 steam_img = customtkinter.CTkImage(dark_image=Image.open(steam_path))
 label_xgp = customtkinter.CTkLabel(window, image=xgp_img, text="")
