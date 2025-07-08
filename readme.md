@@ -55,6 +55,7 @@
 - Includes GamePass ⇔ Steam conversion.  
 - Slot injector to increase slots per player on world/server, compatible with Bigger PalBox mod.  
 - Automated backup between tool usages.
+- All in One Deletion Tool (Delete Guilds, Delete Bases, Delete Players).
 
 ---
 

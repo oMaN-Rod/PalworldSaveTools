@@ -21,7 +21,7 @@ def get_release_assets(repo_owner, repo_name, version):
         assets = release_data['assets']
         for asset in assets:
             print(f"Found asset: {asset['name']}")
-            if "windows-standalone" in asset['name'] and asset['name'].endswith('.zip'):
+            if "win-standalone" in asset['name'] and asset['name'].endswith('.zip'):
                 return asset['browser_download_url']
         print("No matching assets found.")
         return None
@@ -45,26 +45,33 @@ def get_latest_version(repo_owner, repo_name):
     else:
         print(f"Error fetching release info: {response.status_code}")
         return None
+def find_exe(folder):
+    for root, _, files in os.walk(folder):
+        for f in files:
+            if f.lower() == "psp.exe":
+                return os.path.join(root, f)
+    return None
 def main():
-    file_path, download_file = "psp_windows/psp.exe", ""
     repo_owner = "oMaN-Rod"
     repo_name = "palworld-save-pal"
     version = get_latest_version(repo_owner, repo_name)
     if version:
-        if os.path.exists(file_path):
+        exe_path = find_exe("psp_windows")
+        if exe_path:
             print("Opening Palworld Save Pal...")
-            os.chdir("psp_windows")
+            os.chdir(os.path.dirname(exe_path))
             subprocess.Popen("psp.exe")
         else:
             print("Downloading Palworld Save Pal...")
             zip_file = download_from_github(repo_owner, repo_name, version, ".")
             if zip_file:
-                extract_zip(".", "windows-standalone", "psp_windows")
-                os.remove(zip_file)
+                extract_zip(".", "win-standalone", "psp_windows")
                 print(f"Removed downloaded file: {zip_file}")
-            if os.path.exists(file_path):
+                os.remove(zip_file)
+            exe_path = find_exe("psp_windows")
+            if exe_path:
                 print("Opening Palworld Save Pal...")
-                os.chdir("psp_windows")
+                os.chdir(os.path.dirname(exe_path))
                 subprocess.Popen("psp.exe")
             else: print("Failed to download Palworld Save Pal...")
     else: print("Unable to fetch latest release version.")

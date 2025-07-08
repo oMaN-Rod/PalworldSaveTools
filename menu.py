@@ -28,7 +28,7 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.50"
+    tools_version = "1.0.51"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -89,15 +89,13 @@ def run_tool(choice):
         13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
         14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
         15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
-        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_players_guilds.py")]),
-        #17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_bases.py")]),
-        17: lambda: print("Currently in testing phase..."),
-        18: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
-        19: reset_update_tools,
-        20: about_tools,
-        21: usage_tools,
-        22: readme_tools,
-        23: sys.exit
+        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_bases.py")]),
+        17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
+        18: reset_update_tools,
+        19: about_tools,
+        20: usage_tools,
+        21: readme_tools,
+        22: sys.exit
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
 def scan_save():
@@ -182,8 +180,7 @@ management_tools = [
     "Restore Map"
 ]
 cleaning_tools = [
-    "Delete Players and Guilds",
-    "Delete Bases",
+    "All in One Deletion Tool",
     "Generate PalDefender killnearestbase commands"
 ]
 pws_tools = [
