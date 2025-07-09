@@ -102,13 +102,15 @@ def extract_value(data, key, default_value=''):
     return value
 def safe_str(s):
     return s.encode('utf-8', 'replace').decode('utf-8')
+def sanitize_filename(name):
+    return ''.join(c if c.isalnum() or c in (' ', '_', '-', '(', ')') else '_')
 def count_pals_found(data, player_pals_count):
     from collections import defaultdict
     owner_pals_info = defaultdict(list)
     non_owner_pals_info = []
     non_owner_pals_info_with_base = []
     owner_nicknames = {}
-    base_id_groups = defaultdict(list)    
+    base_id_groups = defaultdict(list)
     base_count = defaultdict(int)
     for key, value in data.items():
         if key == "CharacterSaveParameterMap":
@@ -116,7 +118,6 @@ def count_pals_found(data, player_pals_count):
             for raw_data_value_item in raw_data_value_list:
                 raw_data_value_key = raw_data_value_item.get("key", {})
                 raw_data_value_value = raw_data_value_item.get("value", {}).get("RawData", {})
-                is_player = False
                 try:
                     if ("custom_type" in raw_data_value_value and
                         raw_data_value_value["custom_type"] == ".worldSaveData.CharacterSaveParameterMap.Value.RawData" and
@@ -126,17 +127,17 @@ def count_pals_found(data, player_pals_count):
                         if player_uid:
                             owner_nicknames[player_uid] = nickname
                 except KeyError as e:
-                    print(f"KeyError: {e}")  
+                    print(f"KeyError: {e}")
     character_save_param_map = data.get("CharacterSaveParameterMap", {}).get("value", [])
     for item in character_save_param_map:
         raw_data = item.get("value", {}).get("RawData", {}).get("value", {}).get("object", {}).get("SaveParameter", {}).get("value", {})
         if not isinstance(raw_data, dict):
-            continue      
+            continue
         player_uid = raw_data.get("OwnerPlayerUId", {}).get("value")
         character_id = raw_data.get("CharacterID", {}).get("value")
         level = extract_value(raw_data, "Level", 1)
         rank = extract_value(raw_data, "Rank", 1)
-        base = raw_data.get("SlotId", {}).get("value", {}).get("ContainerId", {}).get("value", {}).get("ID", {}).get("value")      
+        base = raw_data.get("SlotId", {}).get("value", {}).get("ContainerId", {}).get("value", {}).get("ID", {}).get("value")
         gender_value = raw_data.get("Gender", {}).get("value", {}).get("value", "")
         gender_info = {
             "EPalGenderType::Male": "Male",
@@ -165,31 +166,34 @@ def count_pals_found(data, player_pals_count):
         nickname_str = f", {pal_nickname}" if pal_nickname != "Unknown" else ""
         pal_info = (
             f"{pal_name}{nickname_str}, Level: {level}, Rank: {rank}, Gender: {gender_info}, "
-            f"{talents_str}{passive_skills_str}, ID: {base}"  
-        )        
+            f"{talents_str}{passive_skills_str}, ID: {base}"
+        )
         base_count[base] += 1
         if not player_uid:
-            pal_name = pal_info.split(",")[0].strip()        
+            pal_name = pal_info.split(",")[0].strip()
             if pal_name != "None":
                 non_owner_pals_info.append(pal_info)
                 non_owner_pals_info_with_base.append(f"{pal_info} (ID: {base})")
-                base_id_groups[base].append(pal_info) 
-                continue       
+                base_id_groups[base].append(pal_info)
+                continue
         owner_pals_info[player_uid].append(pal_info)
-        player_pals_count[player_uid] = player_pals_count.get(player_uid, 0) + 1     
+        player_pals_count[player_uid] = player_pals_count.get(player_uid, 0) + 1
     if non_owner_pals_info:
         filtered_non_owner_pals = non_owner_pals_info_with_base
-        total_non_owner_pals = len(filtered_non_owner_pals) 
+        total_non_owner_pals = len(filtered_non_owner_pals)
         non_owner_log_file = os.path.join(log_folder, "non_owner_pals.log")
-        with open(non_owner_log_file, 'w', encoding='utf-8', errors='replace') as non_owner_file:
-            non_owner_file.write(f"{total_non_owner_pals} Non-Owner Pals\n")
-            non_owner_file.write("-" * (len(str(total_non_owner_pals)) + len(" Non-Owner Pals")) + "\n")
-            for base_id, pals in base_id_groups.items():
-                count = len(pals)
-                non_owner_file.write(f"ID: {base_id} (Count: {count})\n")
-                non_owner_file.write("----------------")
-                non_owner_file.write("-" * (len(f"ID: {base_id} (Count: {count})")) + "\n")
-                non_owner_file.write("\n".join(pals) + "\n\n")              
+        try:
+            with open(non_owner_log_file, 'w', encoding='utf-8', errors='replace') as non_owner_file:
+                non_owner_file.write(f"{total_non_owner_pals} Non-Owner Pals\n")
+                non_owner_file.write("-" * (len(str(total_non_owner_pals)) + len(" Non-Owner Pals")) + "\n")
+                for base_id, pals in base_id_groups.items():
+                    count = len(pals)
+                    non_owner_file.write(f"ID: {base_id} (Count: {count})\n")
+                    non_owner_file.write("----------------")
+                    non_owner_file.write("-" * (len(f"ID: {base_id} (Count: {count})")) + "\n")
+                    non_owner_file.write("\n".join(pals) + "\n\n")
+        except Exception as e:
+            print(f"Failed to write non-owner log: {non_owner_log_file}\n{e}")
     for player_uid, pals_list in owner_pals_info.items():
         pals_by_base_id = defaultdict(list)
         for pal in pals_list:
@@ -202,16 +206,20 @@ def count_pals_found(data, player_pals_count):
         player_name = owner_nicknames.get(player_uid, 'Unknown')
         if player_name == 'Unknown':
             print(f"No nickname found for {player_uid}")
-        sanitized_player_name = sanitize_filename(player_name)
+        sanitized_player_name = sanitize_filename(player_name.encode('utf-8', 'replace').decode('utf-8'))
         log_file = os.path.join(log_folder, f"({sanitized_player_name})({player_uid}).log")
         logger_name = ''.join(c if c.isalnum() or c in ('_', '-') else '_' for c in f"logger_{player_uid}")
         owner_logger = logging.getLogger(logger_name)
         owner_logger.setLevel(logging.INFO)
-        owner_logger.propagate = False       
+        owner_logger.propagate = False
         if not owner_logger.hasHandlers():
-            owner_file_handler = logging.FileHandler(log_file, encoding='utf-8', errors='replace')
-            owner_file_handler.setFormatter(logging.Formatter('%(message)s'))
-            owner_logger.addHandler(owner_file_handler)
+            try:
+                owner_file_handler = logging.FileHandler(log_file, encoding='utf-8', errors='replace')
+                owner_file_handler.setFormatter(logging.Formatter('%(message)s'))
+                owner_logger.addHandler(owner_file_handler)
+            except Exception as e:
+                print(f"Failed to create logger for {log_file}\n{e}")
+                continue
         pals_count = sum(len(pals) for pals in pals_by_base_id.values())
         owner_logger.info(f"{player_name}'s {pals_count} Pals")
         owner_logger.info("-" * (len(player_name) + len(f"'s {pals_count} Pals")))
@@ -219,7 +227,7 @@ def count_pals_found(data, player_pals_count):
             owner_logger.info(f"ID: {base_id}")
             owner_logger.info("----------------")
             sanitized_pals = [safe_str(pal) for pal in sorted(pals)]
-            owner_logger.info("\n".join(sorted(pals)))
+            owner_logger.info("\n".join(sanitized_pals))
             owner_logger.info("----------------")
 def ShowPlayers():
     data_source = wsd

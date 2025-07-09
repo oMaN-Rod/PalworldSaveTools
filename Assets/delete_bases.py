@@ -206,7 +206,6 @@ def delete_base_camp(base, guild_id, loaded_json):
     base_list = loaded_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value']
     base_list[:] = [b for b in base_list if b['key'] != base_id]
     print(f"Deleted base camp {base_id} for guild {guild_id}")
-    print("Remaining base IDs:", len(base_list))
     for b in base_list: print("-", b['key'])
     return True
 def delete_selected_guild():
@@ -309,10 +308,39 @@ def delete_inactive_bases():
             if delete_base_camp(b, gid, loaded_level_json): cnt += 1
     refresh_all()
     messagebox.showinfo("Done", f"Deleted {cnt} bases")
+def is_valid_level(level):
+    try:
+        return int(level) > 0
+    except:
+        return False
 def delete_empty_guilds():
+    build_player_levels()
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     group_data = wsd['GroupSaveDataMap']['value']
-    to_delete = [g for g in group_data if g['value']['GroupType']['value']['value']=='EPalGroupType::Guild' and not g['value']['RawData']['value'].get('players')]
+    to_delete = []
+    for g in group_data:
+        if g['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
+        players = g['value']['RawData']['value'].get('players', [])
+        if not players:
+            to_delete.append(g)
+            continue
+        all_invalid = True
+        for p in players:
+            if isinstance(p, dict) and 'player_uid' in p:
+                uid_obj = p['player_uid']
+                if hasattr(uid_obj, 'hex'):
+                    uid = uid_obj.hex
+                else:
+                    uid = str(uid_obj)
+            else:
+                uid = str(p)
+            uid = uid.replace('-', '')
+            level = player_levels.get(uid, None)
+            if is_valid_level(level):
+                all_invalid = False
+                break
+        if all_invalid:
+            to_delete.append(g)
     for g in to_delete:
         gid = as_uuid(g['key'])
         bases = wsd.get('BaseCampSaveData', {}).get('value', [])[:]
@@ -321,7 +349,7 @@ def delete_empty_guilds():
                 delete_base_camp(b, gid, loaded_level_json)
         group_data.remove(g)
     refresh_all()
-    messagebox.showinfo("Done", f"Deleted {len(to_delete)} empty guild(s)")
+    messagebox.showinfo("Done", f"Deleted {len(to_delete)} guild(s)")
 def on_player_select(evt):
     sel = player_tree.selection()
     if not sel: return
@@ -338,6 +366,7 @@ def delete_inactive_players_button():
 def delete_inactive_players(folder_path, inactive_days=30):
     players_folder = os.path.join(folder_path, 'Players')
     if not os.path.exists(players_folder): return
+    build_player_levels()
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
     deleted_info = []
@@ -348,20 +377,32 @@ def delete_inactive_players(folder_path, inactive_days=30):
         original_players = raw.get('players', [])
         keep_players = []
         for player in original_players:
-            player_uid = str(player.get('player_uid', '')).replace('-', '')
+            if isinstance(player, dict) and 'player_uid' in player:
+                uid_obj = player['player_uid']
+                uid = uid_obj.hex if hasattr(uid_obj, 'hex') else str(uid_obj)
+            else:
+                uid = str(player)
+            uid = uid.replace('-', '')
             player_name = player.get('player_info', {}).get('player_name', 'Unknown')
             last_online = player.get('player_info', {}).get('last_online_real_time')
-            if last_online is None:
-                keep_players.append(player); continue
-            seconds_offline = (tick_now - last_online) / 1e7
-            days_offline = seconds_offline / 86400
-            if days_offline >= inactive_days:
-                player_path = os.path.join(players_folder, player_uid + '.sav')
+            level = player_levels.get(uid, None)
+            inactive = False
+            if last_online is not None:
+                seconds_offline = (tick_now - last_online) / 1e7
+                days_offline = seconds_offline / 86400
+                inactive = days_offline >= inactive_days
+            else:
+                seconds_offline = None
+                days_offline = None
+            if inactive or not is_valid_level(level):
+                player_path = os.path.join(players_folder, uid + '.sav')
                 if os.path.exists(player_path): os.remove(player_path)
-                deleted_info.append(f"{player_name} ({player_uid}) - Inactive for {format_duration(seconds_offline)}")
+                reason = "Inactive" if inactive else "Invalid level"
+                extra = f" - Inactive for {format_duration(seconds_offline)}" if inactive and seconds_offline else ""
+                deleted_info.append(f"{player_name} ({uid}) - {reason}{extra}")
                 char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
                 char_save_map[:] = [entry for entry in char_save_map
-                                   if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != player_uid]
+                                   if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
             else:
                 keep_players.append(player)
         if len(keep_players) != len(original_players):
@@ -378,9 +419,9 @@ def delete_inactive_players(folder_path, inactive_days=30):
         }
         clean_character_save_parameter_map(wsd, valid_uids)
         refresh_all()
-        messagebox.showinfo("Success", f"Deleted {len(deleted_info)} inactive player(s)!")
+        messagebox.showinfo("Success", f"Deleted {len(deleted_info)} player(s)!")
     else:
-        messagebox.showinfo("Info", "No inactive players found for deletion.")
+        messagebox.showinfo("Info", "No players found for deletion.")
 def on_guild_members_search(event=None):
     q = guild_members_search_var.get().lower()
     guild_members_tree.delete(*guild_members_tree.get_children())
