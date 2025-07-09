@@ -60,6 +60,7 @@ def load_save():
     loaded_level_json = sav_to_json(p)
     build_player_levels()
     refresh_all()
+    print(f"Done loading the save!")
 def save_changes():
     if not current_save_path or not loaded_level_json: return
     backup_whole_directory(backup_save_path, "Backups/AllinOneDeletionTool")
@@ -121,25 +122,20 @@ def extract_level(data):
     while isinstance(data, dict) and 'value' in data:
         data = data['value']
     return data
+from collections import defaultdict
 player_levels = {}
 def build_player_levels():
     global player_levels
-    player_levels = {}
     char_map = loaded_level_json['properties']['worldSaveData']['value'].get('CharacterSaveParameterMap', {}).get('value', [])
+    uid_level_map = defaultdict(lambda: '?')
     for entry in char_map:
         key = entry.get('key', {})
         val = entry.get('value', {}).get('RawData', {}).get('value', {})
         uid_obj = key.get('PlayerUId', {})
-        uid = ''
-        if isinstance(uid_obj, dict):
-            uid = uid_obj.get('value', '')
-        else:
-            uid = str(uid_obj)
-        saveparam = val.get('object', {}).get('SaveParameter', {}).get('value', {})
-        level_data = saveparam.get('Level', '?')
-        level = extract_level(level_data)
-        if uid:
-            player_levels[str(uid).replace('-', '')] = level
+        uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj)
+        level = extract_level(val.get('object', {}).get('SaveParameter', {}).get('value', {}).get('Level', '?'))
+        if uid: uid_level_map[uid.replace('-', '')] = level
+    player_levels = dict(uid_level_map)
 def on_guild_select(evt):
     sel = guild_tree.selection()
     if not sel:
@@ -171,12 +167,10 @@ def on_base_select(evt):
     base_result.config(text=f"Selected Base: {base_tree.item(sel[0])['values'][0]}")
 def delete_map_object(instance_id, base_camp_id, loaded_json):
     mod_list = loaded_json['properties']['worldSaveData']['value']['MapObjectSaveData']['value']['values']
-    before_count = len(mod_list)
     mod_list[:] = [m for m in mod_list if not (
         m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id') == instance_id and
         m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('base_camp_id_belong_to') == base_camp_id
     )]
-    after_count = len(mod_list)
 def delete_base_camp(base, guild_id, loaded_json):
     base_val = base['value']
     raw_data = base_val.get('RawData', {}).get('value', {})
@@ -194,19 +188,15 @@ def delete_base_camp(base, guild_id, loaded_json):
         base_ids.pop(idx)
         if mp_points and idx < len(mp_points): mp_points.pop(idx)
     map_objs = loaded_json['properties']['worldSaveData']['value']['MapObjectSaveData']['value']['values']
-    map_obj_ids_to_delete = []
-    for m in map_objs:
-        raw = m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {})
-        inst_id = raw.get('instance_id')
-        base_camp = raw.get('base_camp_id_belong_to')
-        if base_camp == base_id:
-            map_obj_ids_to_delete.append(inst_id)
-    for mo_id in map_obj_ids_to_delete:
-        delete_map_object(mo_id, base_id, loaded_json)
+    map_obj_ids_to_delete = {m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id')
+                             for m in map_objs
+                             if m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('base_camp_id_belong_to') == base_id}
+    if map_obj_ids_to_delete:
+        mod_list = loaded_json['properties']['worldSaveData']['value']['MapObjectSaveData']['value']['values']
+        mod_list[:] = [m for m in mod_list if m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id') not in map_obj_ids_to_delete]
     base_list = loaded_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value']
     base_list[:] = [b for b in base_list if b['key'] != base_id]
     print(f"Deleted base camp {base_id} for guild {guild_id}")
-    for b in base_list: print("-", b['key'])
     return True
 def delete_selected_guild():
     sel = guild_tree.selection()
@@ -377,32 +367,21 @@ def delete_inactive_players(folder_path, inactive_days=30):
         original_players = raw.get('players', [])
         keep_players = []
         for player in original_players:
-            if isinstance(player, dict) and 'player_uid' in player:
-                uid_obj = player['player_uid']
-                uid = uid_obj.hex if hasattr(uid_obj, 'hex') else str(uid_obj)
-            else:
-                uid = str(player)
-            uid = uid.replace('-', '')
+            uid_obj = player.get('player_uid', '')
+            uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj).replace('-', '')
             player_name = player.get('player_info', {}).get('player_name', 'Unknown')
             last_online = player.get('player_info', {}).get('last_online_real_time')
-            level = player_levels.get(uid, None)
-            inactive = False
-            if last_online is not None:
-                seconds_offline = (tick_now - last_online) / 1e7
-                days_offline = seconds_offline / 86400
-                inactive = days_offline >= inactive_days
-            else:
-                seconds_offline = None
-                days_offline = None
+            level = player_levels.get(uid)
+            inactive = last_online is not None and ((tick_now - last_online) / 864000000000) >= inactive_days
             if inactive or not is_valid_level(level):
                 player_path = os.path.join(players_folder, uid + '.sav')
                 if os.path.exists(player_path): os.remove(player_path)
                 reason = "Inactive" if inactive else "Invalid level"
-                extra = f" - Inactive for {format_duration(seconds_offline)}" if inactive and seconds_offline else ""
+                extra = f" - Inactive for {format_duration((tick_now - last_online)/1e7)}" if inactive and last_online else ""
                 deleted_info.append(f"{player_name} ({uid}) - {reason}{extra}")
-                char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
-                char_save_map[:] = [entry for entry in char_save_map
-                                   if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
+                char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+                char_map[:] = [entry for entry in char_map
+                               if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
             else:
                 keep_players.append(player)
         if len(keep_players) != len(original_players):
