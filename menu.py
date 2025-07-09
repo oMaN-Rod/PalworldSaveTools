@@ -3,21 +3,17 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 import importlib.util
-
 RED_FONT = "\033[91m"
 YELLOW_FONT= "\033[93m"
 GREEN_FONT = "\033[92m"
 RESET_FONT = "\033[0m"
-
 def is_frozen():
     return getattr(sys, 'frozen', False)
-
 def get_python_executable():
     if is_frozen():
         return sys.executable
     else:
         return sys.executable
-
 def run_python_script(script_path, *args, change_cwd=True):
     if not os.path.exists(script_path):
         print(f"Error: Script not found: {script_path}")
@@ -55,24 +51,20 @@ def run_python_script(script_path, *args, change_cwd=True):
             import builtins
             builtins.__dict__.clear()
             builtins.__dict__.update(original_builtins)
-
 def set_console_title(title):
     if sys.platform == "win32":
         os.system(f'title {title}')
     else:
         print(f'\033]0;{title}\a', end='', flush=True)
-
 def get_versions():
     tools_version = "1.0.54"
     game_version = "0.6.1"
     return tools_version, game_version
-
 def run_tool(choice):
     if is_frozen():
         assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
     else:
         assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
-
     def run_script(script_name, *args):
         script_path = os.path.join(assets_folder, script_name)
         print(f"Running {script_name}...")
@@ -84,7 +76,6 @@ def run_tool(choice):
                 subprocess.run([venv_python, script_path] + list(args), check=True)
             except subprocess.CalledProcessError as e:
                 print(f"Error running {script_name}: {e}")
-
     tool_mapping = {
         1: lambda: run_script("convert_level_location_finder.py", "json"),
         2: lambda: run_script("convert_level_location_finder.py", "sav"),
@@ -107,7 +98,6 @@ def run_tool(choice):
         19: sys.exit
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
-
 def scan_save():
     for file in ["scan_save.log", "players.log", "sort_players.log"]:
         Path(file).unlink(missing_ok=True)
@@ -124,7 +114,6 @@ def scan_save():
             subprocess.run([venv_python, os.path.join("Assets", "scan_save.py"), str(level_sav_path)])
     else:
         print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
-
 def generate_map():
     if is_frozen():
         assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
@@ -137,7 +126,6 @@ def generate_map():
         subprocess.run(["start", "updated_worldmap.png"], shell=True)
     else:
         print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
-
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
     print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
@@ -166,7 +154,6 @@ def reset_update_tools():
                 shutil.rmtree(os.path.join(root, d), ignore_errors=True)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
-
 converting_tools = [
     "Convert Level.sav file to Level.json",
     "Convert Level.json file back to Level.sav",
@@ -194,7 +181,6 @@ pws_tools = [
     "Reset/Update",
     "Exit"
 ]
-
 class MenuGUI(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -253,7 +239,6 @@ class MenuGUI(tk.Tk):
             frame.pack(fill="x", pady=5)
             self.populate_tools(frame, tools, start_index, color)
             start_index += len(tools)
-
     def populate_tools(self, parent, tools, start_index, color):
         for i, tool in enumerate(tools):
             btn = tk.Button(parent, text=f"{start_index+i}. {tool}", font=("Consolas", 9), bg="#333", fg=color,
@@ -267,7 +252,6 @@ class MenuGUI(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to run tool {choice}.\n{e}")
         self.deiconify()
-
 if __name__ == "__main__":
     tools_version, game_version = get_versions()
     set_console_title(f"PalworldSaveTools v{tools_version}")
