@@ -1,5 +1,72 @@
 import os, subprocess, sys, shutil
 from pathlib import Path
+import importlib.util
+
+# Check if running as frozen executable
+def is_frozen():
+    return getattr(sys, 'frozen', False)
+
+def get_python_executable():
+    if is_frozen():
+        # When frozen, use the bundled Python executable
+        return sys.executable
+    else:
+        return sys.executable
+
+def run_python_script(script_path, *args, change_cwd=True):
+    """Run a Python script by importing it as a module"""
+    if not os.path.exists(script_path):
+        print(f"Error: Script not found: {script_path}")
+        return
+    
+    try:
+        # Save original sys.argv and sys.path
+        original_argv = sys.argv.copy()
+        original_path = sys.path.copy()
+        original_cwd = os.getcwd()
+        original_builtins = None
+        
+        # Add Assets folder to Python path so imports work
+        assets_folder = os.path.dirname(script_path)
+        if assets_folder not in sys.path:
+            sys.path.insert(0, assets_folder)
+        
+        # Set sys.argv for the script
+        sys.argv = [script_path] + list(args)
+        
+        # Change to Assets folder so relative imports work, but only if requested
+        if change_cwd:
+            os.chdir(assets_folder)
+        
+        # Import and run the script
+        spec = importlib.util.spec_from_file_location("__main__", script_path)
+        module = importlib.util.module_from_spec(spec)
+        
+        # Add built-in functions that scripts might expect
+        import builtins
+        original_builtins = builtins.__dict__.copy()
+        builtins.exit = sys.exit
+        builtins.quit = sys.exit
+        
+        sys.modules["__main__"] = module
+        spec.loader.exec_module(module)
+        
+    except SystemExit:
+        # Handle sys.exit() calls gracefully
+        pass
+    except Exception as e:
+        print(f"Error running {script_path}: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        # Restore original sys.argv, sys.path, working directory, and builtins
+        sys.argv = original_argv
+        sys.path = original_path
+        os.chdir(original_cwd)
+        if original_builtins is not None:
+            import builtins
+            builtins.__dict__.clear()
+            builtins.__dict__.update(original_builtins)
 RED_FONT = "\033[91m"
 BLUE_FONT = "\033[94m"
 GREEN_FONT = "\033[92m"
@@ -10,28 +77,21 @@ original_executable = sys.executable
 def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
 def setup_environment():
     if sys.platform != "win32":
-        import resource
-        resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+        try:
+            import resource
+            resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+        except ImportError:
+            pass  # resource module not available on Windows
     os.system('cls' if os.name == 'nt' else 'clear')
     os.makedirs("PalworldSave/Players", exist_ok=True)
-    if not os.path.exists("requirements_installed.flag"):
-        print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
-        if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
-        bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
-        venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
-        sys.executable = venv_python
-        pip_executable = os.path.join("venv", bin_dir, "pip")
-        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
-        with open("requirements_installed.flag", "w") as f: f.write("done")
-    bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
-    venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
-    sys.executable = venv_python
 def get_versions():
     tools_version = "1.0.53"
     game_version = "0.6.1"
     return tools_version, game_version
-columns = os.get_terminal_size().columns
+try:
+    columns = os.get_terminal_size().columns
+except OSError:
+    columns = 80  # Default width for non-interactive environments
 def center_text(text):
     return "\n".join(line.center(columns) for line in text.splitlines())
 def display_logo():
@@ -72,25 +132,44 @@ def display_menu(tools_version, game_version):
     for i, tool in enumerate(pws_tools, len(converting_tools) + len(management_tools) + len(cleaning_tools) + 1): print(center_text(f"{PURPLE_FONT}{i}{RESET_FONT}. {tool}"))
     print(center_text("=" * 85))
 def run_tool(choice):
-    assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
+    if is_frozen():
+        # When frozen, Assets folder is in the same directory as the executable
+        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+    else:
+        assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
+    
+    def run_script(script_name, *args):
+        script_path = os.path.join(assets_folder, script_name)
+        print(f"Running {script_name}...")
+        if is_frozen():
+            # When frozen, import and run the script directly
+            run_python_script(script_path, *args)
+        else:
+            # When not frozen, use subprocess
+            python_exe = get_python_executable()
+            try:
+                subprocess.run([python_exe, script_path] + list(args), check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Error running {script_name}: {e}")
+    
     tool_mapping = {
-        1: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "json"]),
-        2: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "sav"]),
-        3: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_players_location_finder.py"), "json"]),
-        4: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_players_location_finder.py"), "sav"]),
-        5: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "game_pass_save_fix.py")]),
-        6: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convertids.py")]),
-        7: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "coords.py")]),
-        8: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "slot_injector.py")]),
-        9: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "palworld_save_pal.py")]),
+        1: lambda: run_script("convert_level_location_finder.py", "json"),
+        2: lambda: run_script("convert_level_location_finder.py", "sav"),
+        3: lambda: run_script("convert_players_location_finder.py", "json"),
+        4: lambda: run_script("convert_players_location_finder.py", "sav"),
+        5: lambda: run_script("game_pass_save_fix.py"),
+        6: lambda: run_script("convertids.py"),
+        7: lambda: run_script("coords.py"),
+        8: lambda: run_script("slot_injector.py"),
+        9: lambda: run_script("palworld_save_pal.py"),
         10: scan_save,
         11: generate_map,
-        12: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "character_transfer.py")]),
-        13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
-        14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
-        15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
-        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_bases.py")]),
-        17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
+        12: lambda: run_script("character_transfer.py"),
+        13: lambda: run_script("fix_host_save.py"),
+        14: lambda: run_script("fix_host_save_manual.py"),
+        15: lambda: run_script("restore_map.py"),
+        16: lambda: run_script("delete_bases.py"),
+        17: lambda: run_script("paldefender_bases.py"),
         18: reset_update_tools,
         19: about_tools,
         20: usage_tools,
@@ -99,12 +178,34 @@ def run_tool(choice):
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
 def scan_save():
+    if is_frozen():
+        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+    else:
+        assets_folder = "Assets"
     for file in ["scan_save.log", "players.log", "sort_players.log"]: Path(file).unlink(missing_ok=True)
     if Path("Pal Logger").exists(): subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
-    if Path("PalworldSave/Level.sav").exists(): subprocess.run([sys.executable, os.path.join("Assets", "scan_save.py"), "PalworldSave/Level.sav"])
-    else: print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
+    
+    # Check for Level.sav file
+    level_sav_path = Path("PalworldSave/Level.sav")
+    if level_sav_path.exists(): 
+        script_path = os.path.join(assets_folder, "scan_save.py")
+        print(f"Found Level.sav at: {level_sav_path.absolute()}")
+        if is_frozen():
+            # Don't change working directory for scan_save - it needs to run from main directory
+            run_python_script(script_path, str(level_sav_path), change_cwd=False)
+        else:
+            subprocess.run([get_python_executable(), script_path, str(level_sav_path)])
+    else: 
+        print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Looking for file at: {level_sav_path.absolute()}")
+        print("Make sure to place your Level.sav file in the PalworldSave folder.")
 def generate_map():
-    subprocess.run([sys.executable, "-m", "Assets.bases"])
+    if is_frozen():
+        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+        run_python_script(os.path.join(assets_folder, "bases.py"))
+    else:
+        subprocess.run([get_python_executable(), "-m", "Assets.bases"])
     if Path("updated_worldmap.png").exists():
         print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
         subprocess.run(["start", "updated_worldmap.png"], shell=True)
@@ -112,7 +213,6 @@ def generate_map():
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
     print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
-    subprocess.run([sys.executable, "-m", "ensurepip", "--upgrade"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "init"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "remove", "origin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "add", "origin", repo_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -122,11 +222,6 @@ def reset_update_tools():
         subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"{GREEN_FONT}PalworldSaveTools reset completed successfully.{RESET_FONT}")
     subprocess.run(["git", "reset", "--hard", "origin/main"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if os.path.exists("venv"):
-        if os.name == 'nt':
-            subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", "venv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:
-            subprocess.run(["rm", "-rf", "venv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if os.name == 'nt':
         subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", ".git"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
@@ -195,14 +290,25 @@ if __name__ == "__main__":
     set_console_title(f"PalworldSaveTools v{tools_version}")
     setup_environment()
     os.system('cls' if os.name == 'nt' else 'clear')
+    # Check if running with menu choice argument (skip cx_Freeze internal args)
+    user_choice = None
     if len(sys.argv) > 1:
+        # Filter out cx_Freeze internal arguments
+        for arg in sys.argv[1:]:
+            if not arg.startswith('--') and not arg.startswith('-'):
+                try:
+                    user_choice = int(arg)
+                    break
+                except ValueError:
+                    continue
+    
+    if user_choice is not None:
         try:
-            choice = int(sys.argv[1])
-            run_tool(choice)
+            run_tool(user_choice)
             tools_version, game_version = get_versions()
             set_console_title(f"PalworldSaveTools v{tools_version}")
-        except ValueError:
-            print(center_text(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}"))
+        except Exception as e:
+            print(center_text(f"{RED_FONT}Error running tool: {e}{RESET_FONT}"))
     else:
         while True:
             tools_version, game_version = get_versions()

@@ -1,4 +1,8 @@
 from import_libs import *
+
+def get_python_executable():
+    """Get the correct Python executable, handling frozen state"""
+    return sys.executable
 saves = []
 save_extractor_done = threading.Event()
 save_converter_done = threading.Event()
@@ -59,8 +63,13 @@ def update_combobox(saveList):
         button = customtkinter.CTkButton(window, width=200, text="Convert Save", command=lambda: convert_JSON_sav(combobox.get()))
         button.place(relx=0.5, rely=0.8, anchor="center")
 def run_save_extractor():
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    command = [python_exe,  "Assets/xgp_save_extract.py"]
+    python_exe = get_python_executable()
+    if getattr(sys, 'frozen', False):
+        # When frozen, find Assets folder relative to executable
+        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+        command = [python_exe, os.path.join(assets_folder, "xgp_save_extract.py")]
+    else:
+        command = [python_exe, "Assets/xgp_save_extract.py"]
     try:
         subprocess.run(command, check=True)
         print("Command executed successfully")
@@ -111,19 +120,29 @@ def unzip_file(zip_file_path, extract_to_folder):
 def convert_sav_JSON(saveName):
     save_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav")
     if not os.path.exists(save_path): return None
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+    python_exe = get_python_executable()
     command = [python_exe, "-m", "palworld_save_tools.commands.convert", save_path]
-    subprocess.run(command, check=True, cwd="Assets")
+    if getattr(sys, 'frozen', False):
+        # When frozen, run from the Assets folder location
+        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+        subprocess.run(command, check=True, cwd=assets_folder)
+    else:
+        subprocess.run(command, check=True, cwd="Assets")
     return saveName
 def convert_JSON_sav(saveName):
     print(saveName)
     print(f"Converting JSON file to .sav: {saveName}")
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+    python_exe = get_python_executable()
     json_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav.json")
     output_path = os.path.abspath(f"./saves/{saveName}/Level.sav")
     command = [python_exe, "-m", "palworld_save_tools.commands.convert", json_path, "--output", output_path]
     try:
-        subprocess.run(command, check=True, cwd="Assets")
+        if getattr(sys, 'frozen', False):
+            # When frozen, run from the Assets folder location
+            assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+            subprocess.run(command, check=True, cwd=assets_folder)
+        else:
+            subprocess.run(command, check=True, cwd="Assets")
         print("Command executed successfully")
         os.remove(json_path)
         print(f"Deleted JSON file: {json_path}")
@@ -173,7 +192,6 @@ def move_save_steam(saveName):
         messagebox.showerror("Error", f"Failed to copy the save folder: {e}")
 def transfer_steam_to_gamepass(source_folder):
     print(f"Transferring Steam save from {source_folder} to GamePassSave folder using main.py...")
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     main_py_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_xpg_import", "main.py")
     try:
         save_files = os.listdir(source_folder)
@@ -181,6 +199,7 @@ def transfer_steam_to_gamepass(source_folder):
         missing = [suffix for suffix in required_suffixes if not any(f.endswith(suffix) for f in save_files)]
         if missing:
             print(f"Warning: Missing files with suffixes: {', '.join(missing)}. Continuing conversion anyway.")
+        python_exe = get_python_executable()
         subprocess.run([python_exe, main_py_path, source_folder], check=True)
         print("Steam to GamePass conversion completed successfully!")
         messagebox.showinfo("Success", "Steam save exported to GamePass format!")

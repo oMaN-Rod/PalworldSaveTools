@@ -2,6 +2,8 @@
 .github/
 __pycache__/
 venv/
+.venv/
+dist/
 GamePassSave/
 saves/
 Restore Map/
