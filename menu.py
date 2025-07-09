@@ -1,131 +1,114 @@
 import os, subprocess, sys, shutil
 from pathlib import Path
-import tkinter as tk
-from tkinter import messagebox
-import importlib.util
 RED_FONT = "\033[91m"
-YELLOW_FONT= "\033[93m"
+BLUE_FONT = "\033[94m"
 GREEN_FONT = "\033[92m"
+YELLOW_FONT= "\033[93m"
+PURPLE_FONT = "\033[95m"
 RESET_FONT = "\033[0m"
-def is_frozen():
-    return getattr(sys, 'frozen', False)
-def get_python_executable():
-    if is_frozen():
-        return sys.executable
-    else:
-        return sys.executable
-def run_python_script(script_path, *args, change_cwd=True):
-    if not os.path.exists(script_path):
-        print(f"Error: Script not found: {script_path}")
-        return
-    try:
-        original_argv = sys.argv.copy()
-        original_path = sys.path.copy()
-        original_cwd = os.getcwd()
-        original_builtins = None
-        assets_folder = os.path.dirname(script_path)
-        if assets_folder not in sys.path:
-            sys.path.insert(0, assets_folder)
-        sys.argv = [script_path] + list(args)
-        if change_cwd:
-            os.chdir(assets_folder)
-        spec = importlib.util.spec_from_file_location("__main__", script_path)
-        module = importlib.util.module_from_spec(spec)
-        import builtins
-        original_builtins = builtins.__dict__.copy()
-        builtins.exit = sys.exit
-        builtins.quit = sys.exit
-        sys.modules["__main__"] = module
-        spec.loader.exec_module(module)
-    except SystemExit:
-        pass
-    except Exception as e:
-        print(f"Error running {script_path}: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        sys.argv = original_argv
-        sys.path = original_path
-        os.chdir(original_cwd)
-        if original_builtins is not None:
-            import builtins
-            builtins.__dict__.clear()
-            builtins.__dict__.update(original_builtins)
-def set_console_title(title):
-    if sys.platform == "win32":
-        os.system(f'title {title}')
-    else:
-        print(f'\033]0;{title}\a', end='', flush=True)
+original_executable = sys.executable
+def set_console_title(title): os.system(f'title {title}') if sys.platform == "win32" else print(f'\033]0;{title}\a', end='', flush=True)
+def setup_environment():
+    if sys.platform != "win32":
+        import resource
+        resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+    os.system('cls' if os.name == 'nt' else 'clear')
+    os.makedirs("PalworldSave/Players", exist_ok=True)
+    if not os.path.exists("requirements_installed.flag"):
+        print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
+        if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
+        bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
+        venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
+        sys.executable = venv_python
+        pip_executable = os.path.join("venv", bin_dir, "pip")
+        subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
+        subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
+        with open("requirements_installed.flag", "w") as f: f.write("done")
+    bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
+    venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
+    sys.executable = venv_python
 def get_versions():
     tools_version = "1.0.54"
     game_version = "0.6.1"
     return tools_version, game_version
+columns = os.get_terminal_size().columns
+def center_text(text):
+    return "\n".join(line.center(columns) for line in text.splitlines())
+def display_logo():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(center_text("=" * 85))
+    text = r"""     
+  ___      _                _    _ ___              _____         _    
+ | _ \__ _| |_ __ _____ _ _| |__| / __| __ ___ ____|_   _|__  ___| |___
+ |  _/ _` | \ V  V / _ \ '_| / _` \__ \/ _` \ V / -_)| |/ _ \/ _ \ (_-<
+ |_| \__,_|_|\_/\_/\___/_| |_\__,_|___/\__,_|\_/\___||_|\___/\___/_/__/
+    """
+    print(center_text(text))
+    print(f"{center_text(f'{GREEN_FONT}v{tools_version} - Working as of v{game_version} Patch{RESET_FONT}')}")
+    print(f"{center_text(f'{RED_FONT}WARNING: ALWAYS BACKUP YOUR SAVES BEFORE USING THIS TOOL!{RESET_FONT}')}")
+    print(f"{center_text(f'{RED_FONT}MAKE SURE TO UPDATE YOUR SAVES ON/AFTER THE v{game_version} PATCH!{RESET_FONT}')}")
+    print(f"{center_text(f'{RED_FONT}IF YOU DO NOT UPDATE YOUR SAVES, YOU WILL GET ERRORS!{RESET_FONT}')}")
+    print(center_text("=" * 85))
+def display_menu(tools_version, game_version):
+    display_logo()
+    text = f"{BLUE_FONT}Converting Tools{RESET_FONT}"
+    print(center_text(text))
+    print(center_text("=" * 85))
+    for i, tool in enumerate(converting_tools, 1): print(center_text(f"{BLUE_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
+    text = f"{GREEN_FONT}Management Tools{RESET_FONT}"
+    print(center_text(text))
+    print(center_text("=" * 85))
+    for i, tool in enumerate(management_tools, len(converting_tools) + 1): print(center_text(f"{GREEN_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
+    text = f"{YELLOW_FONT}Cleaning Tools{RESET_FONT}"
+    print(center_text(text))
+    print(center_text("=" * 85))
+    for i, tool in enumerate(cleaning_tools, len(converting_tools) + len(management_tools) + 1): print(center_text(f"{YELLOW_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
+    text = f"{PURPLE_FONT}PalworldSaveTools{RESET_FONT}"
+    print(center_text(text))
+    print(center_text("=" * 85))
+    for i, tool in enumerate(pws_tools, len(converting_tools) + len(management_tools) + len(cleaning_tools) + 1): print(center_text(f"{PURPLE_FONT}{i}{RESET_FONT}. {tool}"))
+    print(center_text("=" * 85))
 def run_tool(choice):
-    if is_frozen():
-        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
-    else:
-        assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
-    def run_script(script_name, *args):
-        script_path = os.path.join(assets_folder, script_name)
-        print(f"Running {script_name}...")
-        if is_frozen():
-            run_python_script(script_path, *args)
-        else:
-            venv_python = os.path.join("venv", "Scripts" if os.name == "nt" else "bin", "python")
-            try:
-                subprocess.run([venv_python, script_path] + list(args), check=True)
-            except subprocess.CalledProcessError as e:
-                print(f"Error running {script_name}: {e}")
+    assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
     tool_mapping = {
-        1: lambda: run_script("convert_level_location_finder.py", "json"),
-        2: lambda: run_script("convert_level_location_finder.py", "sav"),
-        3: lambda: run_script("convert_players_location_finder.py", "json"),
-        4: lambda: run_script("convert_players_location_finder.py", "sav"),
-        5: lambda: run_script("game_pass_save_fix.py"),
-        6: lambda: run_script("convertids.py"),
-        7: lambda: run_script("coords.py"),
-        8: lambda: run_script("slot_injector.py"),
-        9: lambda: run_script("palworld_save_pal.py"),
+        1: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "json"]),
+        2: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "sav"]),
+        3: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_players_location_finder.py"), "json"]),
+        4: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_players_location_finder.py"), "sav"]),
+        5: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "game_pass_save_fix.py")]),
+        6: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convertids.py")]),
+        7: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "coords.py")]),
+        8: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "slot_injector.py")]),
+        9: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "palworld_save_pal.py")]),
         10: scan_save,
         11: generate_map,
-        12: lambda: run_script("character_transfer.py"),
-        13: lambda: run_script("fix_host_save.py"),
-        14: lambda: run_script("fix_host_save_manual.py"),
-        15: lambda: run_script("restore_map.py"),
-        16: lambda: run_script("delete_bases.py"),
-        17: lambda: run_script("paldefender_bases.py"),
+        12: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "character_transfer.py")]),
+        13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
+        14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
+        15: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "restore_map.py")]),
+        16: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "delete_bases.py")]),
+        17: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "paldefender_bases.py")]),
         18: reset_update_tools,
-        19: sys.exit
+        19: about_tools,
+        20: usage_tools,
+        21: readme_tools,
+        22: sys.exit
     }
     tool_mapping.get(choice, lambda: print("Invalid choice!"))()
 def scan_save():
-    for file in ["scan_save.log", "players.log", "sort_players.log"]:
-        Path(file).unlink(missing_ok=True)
-    if Path("Pal Logger").exists():
-        subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
-    level_sav_path = Path("PalworldSave/Level.sav")
-    if level_sav_path.exists():
-        if is_frozen():
-            assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
-            script_path = os.path.join(assets_folder, "scan_save.py")
-            run_python_script(script_path, str(level_sav_path), change_cwd=False)
-        else:
-            venv_python = os.path.join("venv", "Scripts" if os.name == "nt" else "bin", "python")
-            subprocess.run([venv_python, os.path.join("Assets", "scan_save.py"), str(level_sav_path)])
-    else:
-        print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
+    for file in ["scan_save.log", "players.log", "sort_players.log"]: Path(file).unlink(missing_ok=True)
+    if Path("Pal Logger").exists(): subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
+    if Path("PalworldSave/Level.sav").exists(): subprocess.run([sys.executable, os.path.join("Assets", "scan_save.py"), "PalworldSave/Level.sav"])
+    else: print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
 def generate_map():
-    if is_frozen():
-        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
-        run_python_script(os.path.join(assets_folder, "bases.py"))
-    else:
-        venv_python = os.path.join("venv", "Scripts" if os.name == "nt" else "bin", "python")
-        subprocess.run([venv_python, "-m", "Assets.bases"])
+    subprocess.run([sys.executable, "-m", "Assets.bases"])
     if Path("updated_worldmap.png").exists():
         print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
         subprocess.run(["start", "updated_worldmap.png"], shell=True)
-    else:
-        print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
+    else: print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
     print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")
@@ -154,6 +137,29 @@ def reset_update_tools():
                 shutil.rmtree(os.path.join(root, d), ignore_errors=True)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+    os.execv(original_executable, [original_executable] + sys.argv)
+def about_tools():
+    display_logo()
+    print("PalworldSaveTools, all in one tool for fixing/transferring/editing/etc Palworld saves.")
+    print("Author: MagicBear and cheahjs")
+    print("License: MIT License")
+    print("Updated by: Pylar and Techdude")
+    print("Map Pictures Provided by: Kozejin")
+    print("Testers/Helpers: Lethe, rcioletti, oMaN-Rod, KrisCris, Zvendson and xKillerMaverick")
+    print("The UI was made by xKillerMaverick")
+    print("Contact me on Discord: Pylar1991")
+def usage_tools():
+    display_logo()
+    print("Some options may require you to use PalworldSave folder, so place your saves in that folder.")
+    print("If you encounter some errors, make sure to run Scan Save first.")
+    print("Then repeat the previous option to see if it fixes the previous error.")
+    print("If everything else fails, you may contact me on Discord: Pylar1991")
+    print("Or raise an issue on my github: https://github.com/deafdudecomputers/PalworldSaveTools")
+def readme_tools():
+    display_logo()
+    readme_path = Path("readme.md")
+    if readme_path.exists(): subprocess.run(["start", str(readme_path)], shell=True)
+    else: print(f"{RED_FONT}readme.md not found.{RESET_FONT}")
 converting_tools = [
     "Convert Level.sav file to Level.json",
     "Convert Level.json file back to Level.sav",
@@ -175,85 +181,36 @@ management_tools = [
 ]
 cleaning_tools = [
     "All in One Deletion Tool",
-    "Generate PalDefender Commands"
+    "Generate PalDefender killnearestbase commands"
 ]
 pws_tools = [
-    "Reset/Update",
+    "Reset/Update PalworldSaveTools",
+    "About PalworldSaveTools",
+    "PalworldSaveTools Usage",
+    "PalworldSaveTools Readme",
     "Exit"
 ]
-class MenuGUI(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        try:
-            icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "Assets", "resources", "pal.ico")
-            if os.name == 'nt' and os.path.exists(icon_path):
-                self.iconbitmap(icon_path)
-        except Exception as e:
-            print(f"Could not set icon: {e}")
-        tools_version, game_version = get_versions()
-        self.title(f"PalworldSaveTools v{tools_version}")
-        self.configure(bg="#1e1e1e")
-        self.geometry("800x730")
-        self.resizable(False, True)
-        self.setup_ui()
-    def setup_ui(self):
-        container = tk.Frame(self, bg="#1e1e1e")
-        container.pack(fill="both", expand=True, padx=10, pady=10)
-        ascii_font = ("Consolas", 11)
-        version_font = ("Consolas", 13, "bold")
-        logo = [
-            "  ___      _                _    _ ___              _____         _    ",
-            " | _ \\__ _| |_ __ _____ _ _| |__| / __| __ ___ ____|_   _|__  ___| |___",
-            " |  _/ _` | \\ V  V / _ \\ '_| / _` \\__ \\/ _` \\ V / -_)| |/ _ \\/ _ \\ (_-<",
-            " |_| \\__,_|_|\\_/\\_/\\___/_| |_\\__,_|___/\\__,_|\\_/\\___||_|\\___/\\___/_/__/ "
-        ]
-        for line in logo:
-            tk.Label(container, text=line, fg="#ccc", bg="#1e1e1e", font=ascii_font).pack(anchor="center")
-        tk.Label(container, text="PalworldSaveTools", fg="#9cf", bg="#1e1e1e", font=version_font).pack(pady=(10,0))
-        tools_version, game_version = get_versions()
-        tk.Label(container, text=f"v{tools_version} (Game v{game_version})", fg="#6f9", bg="#1e1e1e", font=("Consolas", 10)).pack(pady=(0,15))
-        tools_frame = tk.Frame(container, bg="#1e1e1e")
-        tools_frame.pack(fill="both", expand=True)
-        self.left_frame = tk.Frame(tools_frame, bg="#1e1e1e")
-        self.left_frame.pack(side="left", fill="both", expand=True, padx=(0,5))
-        self.right_frame = tk.Frame(tools_frame, bg="#1e1e1e")
-        self.right_frame.pack(side="left", fill="both", expand=True, padx=(5,0))
-        left_categories = [
-            ("Converting Tools", converting_tools, "#2196F3"),
-            ("Management Tools", management_tools, "#4CAF50")
-        ]
-        right_categories = [
-            ("Cleaning Tools", cleaning_tools, "#FFC107"),
-            ("PalworldSaveTools", pws_tools, "#9C27B0")
-        ]
-        start_index = 1
-        for title, tools, color in left_categories:
-            frame = tk.LabelFrame(self.left_frame, text=title, fg=color, bg="#2a2a2a",
-                                  font=("Consolas", 12, "bold"), bd=2, relief="groove", labelanchor="n")
-            frame.pack(fill="x", pady=5)
-            self.populate_tools(frame, tools, start_index, color)
-            start_index += len(tools)
-        for title, tools, color in right_categories:
-            frame = tk.LabelFrame(self.right_frame, text=title, fg=color, bg="#2a2a2a",
-                                  font=("Consolas", 12, "bold"), bd=2, relief="groove", labelanchor="n")
-            frame.pack(fill="x", pady=5)
-            self.populate_tools(frame, tools, start_index, color)
-            start_index += len(tools)
-    def populate_tools(self, parent, tools, start_index, color):
-        for i, tool in enumerate(tools):
-            btn = tk.Button(parent, text=f"{start_index+i}. {tool}", font=("Consolas", 9), bg="#333", fg=color,
-                            activebackground="#444", relief="flat", anchor="w",
-                            command=lambda idx=start_index+i: self.run_tool(idx))
-            btn.pack(fill="x", pady=3, padx=5)
-    def run_tool(self, choice):
-        self.withdraw()
-        try:
-            run_tool(choice)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to run tool {choice}.\n{e}")
-        self.deiconify()
 if __name__ == "__main__":
     tools_version, game_version = get_versions()
     set_console_title(f"PalworldSaveTools v{tools_version}")
-    app = MenuGUI()
-    app.mainloop()
+    setup_environment()
+    os.system('cls' if os.name == 'nt' else 'clear')
+    if len(sys.argv) > 1:
+        try:
+            choice = int(sys.argv[1])
+            run_tool(choice)
+            tools_version, game_version = get_versions()
+            set_console_title(f"PalworldSaveTools v{tools_version}")
+        except ValueError:
+            print(center_text(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}"))
+    else:
+        while True:
+            tools_version, game_version = get_versions()
+            set_console_title(f"PalworldSaveTools v{tools_version}")
+            display_menu(tools_version, game_version)
+            try:
+                choice = int(input(f"{GREEN_FONT}Select what you want to do:{RESET_FONT}"))
+                os.system('cls' if os.name == 'nt' else 'clear')
+                run_tool(choice)
+                input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+            except ValueError: pass
