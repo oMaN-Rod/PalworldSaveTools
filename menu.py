@@ -136,7 +136,7 @@ def reset_update_tools():
             if d == "__pycache__":
                 shutil.rmtree(os.path.join(root, d), ignore_errors=True)
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
-    input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+    os.system('pause' if os.name == 'nt' else 'read -n 1 -s -r -p "Press any key to continue..."')
     os.execv(original_executable, [original_executable] + sys.argv)
 def about_tools():
     display_logo()
@@ -212,5 +212,5 @@ if __name__ == "__main__":
                 choice = int(input(f"{GREEN_FONT}Select what you want to do:{RESET_FONT}"))
                 os.system('cls' if os.name == 'nt' else 'clear')
                 run_tool(choice)
-                input(f"{GREEN_FONT}Press Enter to continue...{RESET_FONT}")
+                os.system('pause' if os.name == 'nt' else 'read -n 1 -s -r -p "Press any key to continue..."')
             except ValueError: pass
