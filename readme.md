@@ -268,10 +268,13 @@ SaveGames
 3. Paste the copied files into this folder.
 4. Start **Palworld**, join the server, and enjoy your character with all progress intact.
 
+---
+
 # Known bugs/issues:
 
-1. Hostile Pals After Character Transfer
-	- After performing a character transfer, some Pals may behave aggressively due to an outdated ownership assignment.
-	- Workaround: Add the affected Pal to your party, drop it on the ground, then pick it back up. This will reassign ownership to the current character.
+1. **Hostile Pals After Character Transfer**  
+   - After transferring a character, some Pals may act aggressive due to ownership issues.  
+   - Workaround: Add the affected Pal to your party, drop it, then pick it up again to fix ownership.
 
-2. Bases get wiped when attempting to transfer from server to local:
+2. **Bases get wiped when transferring from server to local**  
+   - Status: No known fix yet. Caused by patch v0.4.15 changes.
