@@ -275,11 +275,8 @@ SaveGames
 1. **Hostile Pals After Character Transfer**  
    - After transferring a character, some Pals may act aggressive due to ownership issues.  
    - Workaround: Add the affected Pal to your party, drop it, then pick it up again to fix ownership.
-
-2. **Bases get wiped when transferring from server to local**  
-   - Status: No known fix yet. Caused by patch v0.4.15 changes.
    
-3. **Steam to GamePass converter not working or not keeping the changes**
+2. **Steam to GamePass converter not working or not keeping the changes**
    - Please make sure to CLOSE the game on GamePass.
    - Wait few minutes.
    - Use Steam to GamePass converter. 
