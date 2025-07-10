@@ -61,7 +61,9 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     os.rename(old_sav_path, tmp_path)
     if os.path.exists(new_sav_path): os.rename(new_sav_path, old_sav_path)
     os.rename(tmp_path, new_sav_path)
-    print('GUID swap complete!')
+    print(f"Success! Fix has been applied! Have fun!")
+    messagebox.showinfo("Success", "Fix has been applied! Have fun!")
+    sys.exit()
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
