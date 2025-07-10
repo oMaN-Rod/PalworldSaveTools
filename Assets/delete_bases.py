@@ -261,7 +261,7 @@ def delete_selected_player():
             raw['players'] = keep_players
             admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
             keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
-            if admin_uid not in keep_uids: raw['admin_player_uid'] = ""
+            if admin_uid not in keep_uids: raw['admin_player_uid'] = "00000000-0000-0000-0000-000000000000"
     if deleted:
         char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
         char_save_map[:] = [entry for entry in char_save_map
@@ -388,7 +388,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
             raw['players'] = keep_players
             admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
             keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
-            if admin_uid not in keep_uids: raw['admin_player_uid'] = ""
+            if admin_uid not in keep_uids: raw['admin_player_uid'] = "00000000-0000-0000-0000-000000000000"
     if deleted_info:
         valid_uids = {
             str(p.get('player_uid', '')).replace('-', '')
