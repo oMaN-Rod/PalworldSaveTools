@@ -54,6 +54,7 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
                             p['player_uid'] = new_guid_formatted
                         elif p['player_uid'] == new_guid_formatted:
                             p['player_uid'] = old_guid_formatted
+    backup_whole_directory(os.path.dirname(level_sav_path), "Fix Host Save")
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     json_to_sav(new_json, new_sav_path)

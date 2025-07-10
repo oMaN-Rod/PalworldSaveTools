@@ -28,8 +28,8 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.56"
-    game_version = "0.6.1"
+    tools_version = "1.0.57"
+    game_version = "0.6.2"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
 def center_text(text):
