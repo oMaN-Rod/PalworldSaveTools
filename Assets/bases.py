@@ -140,12 +140,18 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     main_dir = os.path.dirname(script_dir)
     log_file_path = os.path.join(main_dir, 'scan_save.log')
-    try:
-        guild_data, base_keys = parse_logfile(log_file_path)
-        write_csv(guild_data, base_keys, 'bases.csv')
-        create_world_map()
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
+    if not os.path.exists(log_file_path):
+        print("Please run the Scan Save Tool first before using this.")
+        sys.exit()
+    guild_data, base_keys = parse_logfile(log_file_path)
+    write_csv(guild_data, base_keys, 'bases.csv')
+    create_world_map()
+    map_path = os.path.join(main_dir, "updated_worldmap.png")
+    if os.path.exists(map_path):
+        print("Opening updated_worldmap.png...")
+        subprocess.run(["start", map_path], shell=True)
+    else:
+        print("updated_worldmap.png not found.")
     end_time = time.time()
     duration = end_time - start_time
     print(f"Done in {duration:.2f} seconds")

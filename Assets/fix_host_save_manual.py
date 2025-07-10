@@ -95,6 +95,9 @@ level_file_entry.grid(row=0, column=1, padx=5, sticky='ew')
 def browse_file():
     path = filedialog.askopenfilename(title="Select Level.sav", filetypes=[("SAV Files", "*.sav")])
     if path:
+        if not path.endswith("Level.sav"):
+            messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
+            return
         level_file_entry.delete(0, 'end')
         level_file_entry.insert(0, path)
 tk.Button(frame, text="Browse", command=browse_file, bg="#555555", fg="white", font=font_style, activebackground="#666666").grid(row=0, column=2, padx=5)

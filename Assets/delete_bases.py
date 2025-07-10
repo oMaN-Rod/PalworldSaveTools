@@ -52,6 +52,9 @@ def load_save():
     global current_save_path, loaded_level_json, backup_save_path
     p = filedialog.askopenfilename(title="Select Level.sav", filetypes=[("SAV","*.sav")])
     if not p: return
+    if not p.endswith("Level.sav"):
+        messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
+        return
     d = os.path.dirname(p); playerdir=os.path.join(d,"Players")
     if not os.path.isdir(playerdir):
         messagebox.showerror("Error","Players folder missing"); return    
@@ -62,6 +65,10 @@ def load_save():
     refresh_all()
     print(f"Done loading the save!")
 def save_changes():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     if not current_save_path or not loaded_level_json: return
     backup_whole_directory(backup_save_path, "Backups/AllinOneDeletionTool")
     level_sav_path = os.path.join(current_save_path, "Level.sav")
@@ -199,6 +206,10 @@ def delete_base_camp(base, guild_id, loaded_json):
     print(f"Deleted base camp {base_id} for guild {guild_id}")
     return True
 def delete_selected_guild():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     sel = guild_tree.selection()
     if not sel: messagebox.showerror("Error", "Select guild"); return
     gid = guild_tree.item(sel[0])['values'][1]
@@ -228,6 +239,10 @@ def delete_selected_guild():
     refresh_all()
     messagebox.showinfo("Deleted", "Guild, players, and all their pals successfully deleted")
 def delete_selected_base():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     sel = base_tree.selection()
     if not sel: messagebox.showerror("Error", "Select base"); return
     bid = base_tree.item(sel[0])['values'][0]
@@ -238,6 +253,10 @@ def delete_selected_base():
     refresh_all()
     messagebox.showinfo("Deleted", "Base deleted")
 def delete_selected_player():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     sel=player_tree.selection()
     if not sel: messagebox.showerror("Error","Select player"); return
     uid=player_tree.item(sel[0])['values'][0].replace('-', '')
@@ -278,6 +297,10 @@ def delete_selected_player():
     else:
         messagebox.showinfo("Info", "Player not found or already deleted.")
 def delete_inactive_bases():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     d = simpledialog.askinteger("Delete Inactive Bases", "Delete bases where ALL players inactive for how many days?")
     if d is None: return
     wsd = loaded_level_json['properties']['worldSaveData']['value']
@@ -304,6 +327,10 @@ def is_valid_level(level):
     except:
         return False
 def delete_empty_guilds():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     build_player_levels()
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     group_data = wsd['GroupSaveDataMap']['value']
@@ -346,12 +373,12 @@ def on_player_select(evt):
     uid, name, *_ = player_tree.item(sel[0])['values']
     player_result.config(text=f"Selected Player: {name} ({uid})")
 def delete_inactive_players_button():
-    d = simpledialog.askinteger("Days", "Delete players inactive for days?")
-    if d is None: return
     folder = current_save_path
     if not folder:
         messagebox.showerror("Error", "No save loaded!")
         return
+    d = simpledialog.askinteger("Days", "Delete players inactive for days?")
+    if d is None: return
     delete_inactive_players(folder, inactive_days=d)
 def delete_inactive_players(folder_path, inactive_days=30):
     players_folder = os.path.join(folder_path, 'Players')
@@ -402,6 +429,10 @@ def delete_inactive_players(folder_path, inactive_days=30):
     else:
         messagebox.showinfo("Info", "No players found for deletion.")
 def delete_duplicated_players():
+    folder = current_save_path
+    if not folder:
+        messagebox.showerror("Error", "No save loaded!")
+        return
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
     group_data_list = wsd['GroupSaveDataMap']['value']

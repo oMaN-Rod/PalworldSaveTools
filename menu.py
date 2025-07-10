@@ -28,7 +28,7 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.58"
+    tools_version = "1.0.59"
     game_version = "0.6.2"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -88,7 +88,7 @@ def run_tool(choice):
         8: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "slot_injector.py")]),
         9: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "palworld_save_pal.py")]),
         10: scan_save,
-        11: generate_map,
+        11: lambda: subprocess.run([sys.executable, "-m", "Assets.bases"]),
         12: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "character_transfer.py")]),
         13: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save.py")]),
         14: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "fix_host_save_manual.py")]),
@@ -107,12 +107,6 @@ def scan_save():
     if Path("Pal Logger").exists(): subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
     if Path("PalworldSave/Level.sav").exists(): subprocess.run([sys.executable, os.path.join("Assets", "scan_save.py"), "PalworldSave/Level.sav"])
     else: print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
-def generate_map():
-    subprocess.run([sys.executable, "-m", "Assets.bases"])
-    if Path("updated_worldmap.png").exists():
-        print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
-        subprocess.run(["start", "updated_worldmap.png"], shell=True)
-    else: print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
 def reset_update_tools():
     repo_url = "https://github.com/deafdudecomputers/PalworldSaveTools.git"
     print(f"{GREEN_FONT}Resetting/Updating PalworldSaveTools...{RESET_FONT}")

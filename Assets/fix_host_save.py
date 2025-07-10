@@ -130,6 +130,9 @@ def choose_level_file():
     global player_list_cache
     path = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV Files", "*.sav")])
     if not path: return
+    if not path.endswith("Level.sav"):
+        messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
+        return
     folder_path = os.path.dirname(path)
     players_folder = os.path.join(folder_path, "Players")
     if not os.path.exists(players_folder):

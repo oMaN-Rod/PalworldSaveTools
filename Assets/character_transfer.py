@@ -175,7 +175,7 @@ class SkipGvasFile(GvasFile):
         return writer.bytes()        
 def validate_inputs():
     if not all([level_sav_path, t_level_sav_path, selected_source_player, selected_target_player]):
-        messagebox.showerror(message='Please have both level files and players selected before starting transfer.')
+        messagebox.showerror("Error!", "Please have both level files and players selected before starting transfer.")
         return False
     response = messagebox.askyesno(title='WARNING', message='WARNING: Running this script WILL change your target save files and could potentially corrupt your data. It is HIGHLY recommended that you make a backup of your save folder before continuing. Press Yes if you would like to continue.')
     return response
@@ -207,7 +207,7 @@ def find_host_and_pals():
                 param_maps.append(fast_deepcopy(character_save_param))
                 palcount += 1
     if not found:
-        messagebox.showerror(message="Couldn't find source character instance data in the source world save")
+        messagebox.showerror("Error!", "Couldn't find source character instance data in the source world save!")
         return False
     return True
 def gather_host_containers():
@@ -284,7 +284,7 @@ def update_target_character_instance():
             found = True
             break
     if not found:
-        messagebox.showerror(message="Couldn't find target character instance in target world save.")
+        messagebox.showerror("Error!", "Couldn't find target character instance in target world save.")
         return False
     return True
 def update_guild_data(targ_json, targ_lvl, keep_old_guild_id, host_guid, source_guild_dict):
@@ -304,7 +304,7 @@ def update_guild_data(targ_json, targ_lvl, keep_old_guild_id, host_guid, source_
                     guild_item_instances = {guild_item['instance_id'] for guild_item in guild_items_json}
                     break
         if group_id is None:
-            messagebox.showerror(message='Guild ID not found, aborting')
+            messagebox.showerror("Error!", "Guild ID not found, aborting!")
             return False, None, None
     else:
         for group_idx, group_data in enumerate(targ_lvl["GroupSaveDataMap"]["value"]):
@@ -360,7 +360,7 @@ def update_guild_data(targ_json, targ_lvl, keep_old_guild_id, host_guid, source_
                 if old_guild:
                     break
             if old_guild is None:
-                messagebox.showerror(message="No guild containing the source player is found in the source either, either this is a bug or the files are corrupted. Aborting.")
+                messagebox.showerror("Error!", "No guild containing the source player is found in the source either, either this is a bug or the files are corrupted. Aborting.")
                 return False, None, None
             group_id = old_guild["key"]
             raw_data = old_guild["value"]["RawData"]["value"]
@@ -530,11 +530,11 @@ def load_player_file(level_sav_path, player_uid):
     if not os.path.exists(player_file_path):
         player_file_path = os.path.join(os.path.dirname(level_sav_path), '../Players', player_uid + '.sav')
         if not os.path.exists(player_file_path):
-            messagebox.showerror(message=f"Player file {player_file_path} not present")
+            messagebox.showerror("Error!", f"Player file {player_file_path} not present")
             return None
     raw_gvas, save_type = load_file(player_file_path)
     if not raw_gvas:
-        messagebox.showerror(message=f"Invalid file {player_file_path}")
+        messagebox.showerror("Error!", f"Invalid file {player_file_path}")
         return
     return SkipGvasFile.read(raw_gvas)
 def load_players(save_json, is_source):
@@ -574,12 +574,12 @@ def source_level_file():
     global level_sav_path, source_level_path_label, level_json, selected_source_player, source_section_load_handle
     tmp = select_file()
     if tmp:
-        if not tmp.endswith('.sav'):
-            messagebox.showerror("Incorrect file", "This is not the right file. Please select *.sav file.")
+        if not tmp.endswith("Level.sav"):
+            messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
             return
         raw_gvas, save_type = load_file(tmp)
         if not raw_gvas:
-            messagebox.showerror(message="Invalid files, files must be .sav")
+            messagebox.showerror("Error!", "Invalid file, must be Level.sav!")
             return
         reader = MyReader(raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
         group_save_section, _ = reader.load_section('GroupSaveDataMap', MAP_START, reverse=True)
@@ -604,12 +604,12 @@ def target_level_file():
     global t_level_sav_path, target_level_path_label, targ_lvl, target_level_cache, target_section_ranges, target_raw_gvas, target_save_type, selected_target_player, target_section_load_handle, TARGET_CNK_DATA_HEADER
     tmp = select_file()
     if tmp:
-        if not tmp.endswith('.sav'):
-            messagebox.showerror("Incorrect file", "This is not the right file. Please select *.sav file.")
+        if not tmp.endswith("Level.sav"):
+            messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
             return
         raw_gvas, target_save_type = load_file(tmp)
         if not raw_gvas:
-            messagebox.showerror(message="Invalid files, files must be .sav")
+            messagebox.showerror("Error!", "Invalid file, must be Level.sav!")
             return
         target_raw_gvas = raw_gvas
         reader = MyReader(raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)

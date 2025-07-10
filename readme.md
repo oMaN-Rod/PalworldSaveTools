@@ -278,3 +278,9 @@ SaveGames
 
 2. **Bases get wiped when transferring from server to local**  
    - Status: No known fix yet. Caused by patch v0.4.15 changes.
+   
+3. **Steam to GamePass converter not working or not keep the changes**
+   - Please make sure to CLOSE the game on GamePass and wait few minutes.
+   - Then use Steam to GamePass converter. 
+   - Wait few minutes.
+   - Open GamePass and enjoy your game.
