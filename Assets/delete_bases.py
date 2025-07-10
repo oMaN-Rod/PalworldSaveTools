@@ -353,54 +353,72 @@ def delete_inactive_players_button():
         messagebox.showerror("Error", "No save loaded!")
         return
     delete_inactive_players(folder, inactive_days=d)
-def delete_inactive_players(folder_path, inactive_days=30):
-    players_folder = os.path.join(folder_path, 'Players')
-    if not os.path.exists(players_folder): return
-    build_player_levels()
+def delete_duplicated_players():
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
-    deleted_info = []
     group_data_list = wsd['GroupSaveDataMap']['value']
+    uid_to_player = {}
+    uid_to_group = {}
+    deleted_players = []
+    def format_duration(ticks):
+        total_seconds = int(ticks / 1e7)
+        days, rem = divmod(total_seconds, 86400)
+        hours, rem = divmod(rem, 3600)
+        minutes, _ = divmod(rem, 60)
+        return f"{days}d:{hours}h:{minutes}m ago"
     for group in group_data_list:
         if group['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
         raw = group['value']['RawData']['value']
-        original_players = raw.get('players', [])
-        keep_players = []
-        for player in original_players:
+        players = raw.get('players', [])
+        for player in players[:]:
             uid_obj = player.get('player_uid', '')
             uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj).replace('-', '')
             player_name = player.get('player_info', {}).get('player_name', 'Unknown')
-            last_online = player.get('player_info', {}).get('last_online_real_time')
-            level = player_levels.get(uid)
-            inactive = last_online is not None and ((tick_now - last_online) / 864000000000) >= inactive_days
-            if inactive or not is_valid_level(level):
-                player_path = os.path.join(players_folder, uid + '.sav')
-                if os.path.exists(player_path): os.remove(player_path)
-                reason = "Inactive" if inactive else "Invalid level"
-                extra = f" - Inactive for {format_duration((tick_now - last_online)/1e7)}" if inactive and last_online else ""
-                deleted_info.append(f"{player_name} ({uid}) - {reason}{extra}")
-                char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
-                char_map[:] = [entry for entry in char_map
-                               if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
+            guild_id = group['key']
+            last_online = player.get('player_info', {}).get('last_online_real_time') or 0
+            days_inactive = (tick_now - last_online) / 864000000000 if last_online else float('inf')
+            if uid in uid_to_player:
+                existing_player = uid_to_player[uid]
+                existing_group = uid_to_group[uid]
+                existing_raw = existing_group['value']['RawData']['value']
+                existing_lo = existing_player.get('player_info', {}).get('last_online_real_time') or 0
+                existing_days_inactive = (tick_now - existing_lo) / 864000000000 if existing_lo else float('inf')
+                existing_name = existing_player.get('player_info', {}).get('player_name', 'Unknown')
+                existing_gid = existing_group['key']
+                if days_inactive > existing_days_inactive:
+                    raw['players'] = [p for p in players if str(p.get('player_uid', '')).replace('-', '') != uid]
+                    deleted_players.append({
+                        'deleted_uid': uid,
+                        'deleted_name': player_name,
+                        'deleted_gid': guild_id,
+                        'deleted_last_online': last_online,
+                        'kept_uid': uid,
+                        'kept_name': existing_name,
+                        'kept_gid': existing_gid,
+                        'kept_last_online': existing_lo
+                    })
+                else:
+                    existing_raw['players'] = [p for p in existing_raw.get('players', []) if str(p.get('player_uid', '')).replace('-', '') != uid]
+                    deleted_players.append({
+                        'deleted_uid': uid,
+                        'deleted_name': existing_name,
+                        'deleted_gid': existing_gid,
+                        'deleted_last_online': existing_lo,
+                        'kept_uid': uid,
+                        'kept_name': player_name,
+                        'kept_gid': guild_id,
+                        'kept_last_online': last_online
+                    })
+                    uid_to_player[uid] = player
+                    uid_to_group[uid] = group
             else:
-                keep_players.append(player)
-        if len(keep_players) != len(original_players):
-            raw['players'] = keep_players
-            admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
-            keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
-            if admin_uid not in keep_uids: raw['admin_player_uid'] = ""
-    if deleted_info:
-        valid_uids = {
-            str(p.get('player_uid', '')).replace('-', '')
-            for g in wsd['GroupSaveDataMap']['value']
-            if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
-            for p in g['value']['RawData']['value'].get('players', [])
-        }
-        clean_character_save_parameter_map(wsd, valid_uids)
-        refresh_all()
-        messagebox.showinfo("Success", f"Deleted {len(deleted_info)} player(s)!")
-    else:
-        messagebox.showinfo("Info", "No players found for deletion.")
+                uid_to_player[uid] = player
+                uid_to_group[uid] = group
+    refresh_all()
+    for d in deleted_players:
+        print(f"KEPT    -> UID: {d['kept_uid']}, Name: {d['kept_name']}, Guild ID: {d['kept_gid']}, Last Online: {format_duration(tick_now - d['kept_last_online'])}")
+        print(f"DELETED -> UID: {d['deleted_uid']}, Name: {d['deleted_name']}, Guild ID: {d['deleted_gid']}, Last Online: {format_duration(tick_now - d['deleted_last_online'])}\n")
+    print(f"Deleted {len(deleted_players)} duplicate player(s)...")
 def on_guild_members_search(event=None):
     q = guild_members_search_var.get().lower()
     guild_members_tree.delete(*guild_members_tree.get_children())
@@ -425,20 +443,20 @@ window = tk.Tk()
 window.title("All in One Deletion Tool")
 window.geometry("1200x700")
 window.config(bg="#2f2f2f")
-font=("Arial",10)
-s=ttk.Style(window)
+font = ("Arial", 10)
+s = ttk.Style(window)
 s.theme_use('clam')
 try: window.iconbitmap(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico"))
 except Exception: pass
 for opt in [
-    ("Treeview.Heading",{"font":("Arial",12,"bold"),"background":"#444","foreground":"white"}),
-    ("Treeview",{"background":"#333","foreground":"white","fieldbackground":"#333"}),
-    ("TFrame",{"background":"#2f2f2f"}),
-    ("TLabel",{"background":"#2f2f2f","foreground":"white"}),
-    ("TEntry",{"fieldbackground":"#444","foreground":"white"}),
-    ("Dark.TButton",{"background":"#555555","foreground":"white","font":font,"padding":6}),
+    ("Treeview.Heading", {"font": ("Arial", 12, "bold"), "background": "#444", "foreground": "white"}),
+    ("Treeview", {"background": "#333", "foreground": "white", "fieldbackground": "#333"}),
+    ("TFrame", {"background": "#2f2f2f"}),
+    ("TLabel", {"background": "#2f2f2f", "foreground": "white"}),
+    ("TEntry", {"fieldbackground": "#444", "foreground": "white"}),
+    ("Dark.TButton", {"background": "#555555", "foreground": "white", "font": font, "padding": 6}),
 ]:
-    s.configure(opt[0],**opt[1])
+    s.configure(opt[0], **opt[1])
 s.map("Dark.TButton",
       background=[("active", "#666666"), ("!disabled", "#555555")],
       foreground=[("disabled", "#888888"), ("!disabled", "white")])
@@ -447,26 +465,26 @@ def create_search_panel(parent, label_text, search_var, search_callback, tree_co
     panel.place(width=width, height=height)
     topbar = ttk.Frame(panel, style="TFrame")
     topbar.pack(fill='x', padx=5, pady=5)
-    lbl = ttk.Label(topbar, text=label_text, font=("Arial",10), style="TLabel")
+    lbl = ttk.Label(topbar, text=label_text, font=("Arial", 10), style="TLabel")
     lbl.pack(side='left')
     entry = ttk.Entry(topbar, textvariable=search_var)
-    entry.pack(side='left', fill='x', expand=True, padx=(5,0))
+    entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
     search_var.trace_add('write', lambda *a: search_callback(None))
     tree = ttk.Treeview(panel, columns=tree_columns, show='headings', height=tree_height)
-    tree.pack(fill='both', expand=True, padx=5, pady=(0,5))
+    tree.pack(fill='both', expand=True, padx=5, pady=(0, 5))
     for col, head, width_col in zip(tree_columns, tree_headings, tree_col_widths):
         tree.heading(col, text=head)
         tree.column(col, width=width_col, anchor='w')
     return panel, tree, entry
 guild_search_var = tk.StringVar()
 gframe, guild_tree, guild_search_entry = create_search_panel(window, "Search Guilds:", guild_search_var, on_guild_search,
-    ("Name","ID"), ("Guild Name","Guild ID"), (130,130), 310, 600)
-gframe.place(x=10,y=40)
+    ("Name", "ID"), ("Guild Name", "Guild ID"), (130, 130), 310, 600)
+gframe.place(x=10, y=40)
 guild_tree.bind("<<TreeviewSelect>>", on_guild_select)
 base_search_var = tk.StringVar()
 bframe, base_tree, base_search_entry = create_search_panel(window, "Search Bases:", base_search_var, on_base_search,
     ("ID",), ("Base ID",), (280,), 310, 280)
-bframe.place(x=330,y=40)
+bframe.place(x=330, y=40)
 base_tree.bind("<<TreeviewSelect>>", on_base_select)
 guild_members_search_var = tk.StringVar()
 gm_frame, guild_members_tree, guild_members_search_entry = create_search_panel(
@@ -481,14 +499,14 @@ pframe, player_tree, player_search_entry = create_search_panel(
     ("Player UID", "Player Name", "Guild ID", "Last Seen", "Level"),
     (100, 120, 120, 90, 50),
     540, 600)
-pframe.place(x=650,y=40)
+pframe.place(x=650, y=40)
 player_tree.bind("<<TreeviewSelect>>", on_player_select)
-guild_result=tk.Label(window,text="Selected Guild: N/A",bg="#2f2f2f",fg="white",font=font)
-guild_result.place(x=10,y=10)
-base_result=tk.Label(window,text="Selected Base: N/A",bg="#2f2f2f",fg="white",font=font)
-base_result.place(x=330,y=10)
-player_result=tk.Label(window,text="Selected Player: N/A",bg="#2f2f2f",fg="white",font=font)
-player_result.place(x=650,y=10)
+guild_result = tk.Label(window, text="Selected Guild: N/A", bg="#2f2f2f", fg="white", font=font)
+guild_result.place(x=10, y=10)
+base_result = tk.Label(window, text="Selected Base: N/A", bg="#2f2f2f", fg="white", font=font)
+base_result.place(x=330, y=10)
+player_result = tk.Label(window, text="Selected Player: N/A", bg="#2f2f2f", fg="white", font=font)
+player_result.place(x=650, y=10)
 btn_save_changes = ttk.Button(window, text="Save Changes", command=save_changes, style="Dark.TButton")
 btn_save_changes.place(x=650 + 540 - 5 - btn_save_changes.winfo_reqwidth(), y=10)
 window.update_idletasks()
@@ -503,8 +521,13 @@ btn_delete_base = ttk.Button(window, text="Delete Selected Base", command=delete
 btn_delete_base.place(x=330 + 5, y=40 + 600 + 10)
 btn_delete_inactive_bases = ttk.Button(window, text="Delete Inactive Bases", command=delete_inactive_bases, style="Dark.TButton")
 btn_delete_inactive_bases.place(x=330 + 310 - 5 - btn_delete_inactive_bases.winfo_reqwidth(), y=40 + 600 + 10)
+y_pos = 40 + 600 + 10
+base_x = 650
+panel_width = 540
 btn_delete_player = ttk.Button(window, text="Delete Selected Player", command=delete_selected_player, style="Dark.TButton")
-btn_delete_player.place(x=650 + (540 // 4) - (btn_delete_player.winfo_reqwidth() // 2), y=40 + 600 + 10)
+btn_fix_duplicate_players = ttk.Button(window, text="Delete Duplicate Players", command=delete_duplicated_players, style="Dark.TButton")
 btn_delete_inactive_players = ttk.Button(window, text="Delete Inactive Players", command=delete_inactive_players_button, style="Dark.TButton")
-btn_delete_inactive_players.place(x=650 + (540 * 3 // 4) - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=40 + 600 + 10)
+btn_delete_player.place(x=base_x + panel_width * 0.18 - (btn_delete_player.winfo_reqwidth() // 2), y=y_pos)
+btn_fix_duplicate_players.place(x=base_x + panel_width * 0.50 - (btn_fix_duplicate_players.winfo_reqwidth() // 2), y=y_pos)
+btn_delete_inactive_players.place(x=base_x + panel_width * 0.82 - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=y_pos)
 window.mainloop()
