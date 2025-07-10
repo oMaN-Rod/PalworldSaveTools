@@ -28,7 +28,7 @@ def setup_environment():
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
 def get_versions():
-    tools_version = "1.0.55"
+    tools_version = "1.0.56"
     game_version = "0.6.1"
     return tools_version, game_version
 columns = os.get_terminal_size().columns
@@ -73,6 +73,10 @@ def display_menu(tools_version, game_version):
     print(center_text("=" * 85))
 def run_tool(choice):
     assets_folder = os.path.join(os.path.dirname(__file__), "Assets")
+    disabled_tools = {}
+    if choice in disabled_tools:
+        print("Sorry, this option is currently disabled.")
+        return
     tool_mapping = {
         1: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "json"]),
         2: lambda: subprocess.run([sys.executable, os.path.join(assets_folder, "convert_level_location_finder.py"), "sav"]),
