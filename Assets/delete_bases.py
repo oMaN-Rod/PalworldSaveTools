@@ -353,6 +353,54 @@ def delete_inactive_players_button():
         messagebox.showerror("Error", "No save loaded!")
         return
     delete_inactive_players(folder, inactive_days=d)
+def delete_inactive_players(folder_path, inactive_days=30):
+    players_folder = os.path.join(folder_path, 'Players')
+    if not os.path.exists(players_folder): return
+    build_player_levels()
+    wsd = loaded_level_json['properties']['worldSaveData']['value']
+    tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
+    deleted_info = []
+    group_data_list = wsd['GroupSaveDataMap']['value']
+    for group in group_data_list:
+        if group['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
+        raw = group['value']['RawData']['value']
+        original_players = raw.get('players', [])
+        keep_players = []
+        for player in original_players:
+            uid_obj = player.get('player_uid', '')
+            uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj).replace('-', '')
+            player_name = player.get('player_info', {}).get('player_name', 'Unknown')
+            last_online = player.get('player_info', {}).get('last_online_real_time')
+            level = player_levels.get(uid)
+            inactive = last_online is not None and ((tick_now - last_online) / 864000000000) >= inactive_days
+            if inactive or not is_valid_level(level):
+                player_path = os.path.join(players_folder, uid + '.sav')
+                if os.path.exists(player_path): os.remove(player_path)
+                reason = "Inactive" if inactive else "Invalid level"
+                extra = f" - Inactive for {format_duration((tick_now - last_online)/1e7)}" if inactive and last_online else ""
+                deleted_info.append(f"{player_name} ({uid}) - {reason}{extra}")
+                char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+                char_map[:] = [entry for entry in char_map
+                               if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
+            else:
+                keep_players.append(player)
+        if len(keep_players) != len(original_players):
+            raw['players'] = keep_players
+            admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
+            keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
+            if admin_uid not in keep_uids: raw['admin_player_uid'] = ""
+    if deleted_info:
+        valid_uids = {
+            str(p.get('player_uid', '')).replace('-', '')
+            for g in wsd['GroupSaveDataMap']['value']
+            if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+            for p in g['value']['RawData']['value'].get('players', [])
+        }
+        clean_character_save_parameter_map(wsd, valid_uids)
+        refresh_all()
+        messagebox.showinfo("Success", f"Deleted {len(deleted_info)} player(s)!")
+    else:
+        messagebox.showinfo("Info", "No players found for deletion.")
 def delete_duplicated_players():
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
