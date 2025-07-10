@@ -11,51 +11,57 @@ def backup_whole_directory(source_folder, backup_folder):
     shutil.copytree(source_folder, backup_path)
     print(f"Backup of {source_folder} created at: {backup_path}")
 def fix_save(save_path, new_guid, old_guid, guild_fix=True):
-    if new_guid[-4:] == '.sav' or old_guid[-4:] == '.sav':
-        messagebox.showerror("Error", "Use only the GUID, not the entire filename.")
-        return
-    if len(new_guid) != 32 or len(old_guid) != 32:
-        messagebox.showerror("Error", "GUIDs must be 32 characters long.")
-        return
-    if new_guid == old_guid:
-        messagebox.showerror("Error", "New GUID and Old GUID cannot be the same.")
-        return
     new_guid_formatted = '{}-{}-{}-{}-{}'.format(new_guid[:8], new_guid[8:12], new_guid[12:16], new_guid[16:20], new_guid[20:]).lower()
     old_guid_formatted = '{}-{}-{}-{}-{}'.format(old_guid[:8], old_guid[8:12], old_guid[12:16], old_guid[16:20], old_guid[20:]).lower()
     level_sav_path = os.path.join(save_path, 'Level.sav')
     old_sav_path = os.path.join(save_path, 'Players', old_guid + '.sav')
     new_sav_path = os.path.join(save_path, 'Players', new_guid + '.sav')
-    if not os.path.exists(save_path) or not os.path.exists(old_sav_path):
-        messagebox.showerror("Error", f'Missing save folder or player file.')
-        return
     level_json = sav_to_json(level_sav_path)
     old_json = sav_to_json(old_sav_path)
+    new_json = sav_to_json(new_sav_path)
     old_json['properties']['SaveData']['value']['PlayerUId']['value'] = new_guid_formatted
+    old_json['properties']['SaveData']['value']['IndividualId']['value']['PlayerUId']['value'] = new_guid_formatted
     old_instance_id = old_json['properties']['SaveData']['value']['IndividualId']['value']['InstanceId']['value']
+    new_json['properties']['SaveData']['value']['PlayerUId']['value'] = old_guid_formatted
+    new_json['properties']['SaveData']['value']['IndividualId']['value']['PlayerUId']['value'] = old_guid_formatted
+    new_instance_id = new_json['properties']['SaveData']['value']['IndividualId']['value']['InstanceId']['value']
+    for item in level_json['properties']['worldSaveData']['value']['CharacterSaveParameterMap']['value']:
+        if item['key']['InstanceId']['value'] == old_instance_id:
+            item['key']['PlayerUId']['value'] = new_guid_formatted
+            break
+    for item in level_json['properties']['worldSaveData']['value']['CharacterSaveParameterMap']['value']:
+        if item['key']['InstanceId']['value'] == new_instance_id:
+            item['key']['PlayerUId']['value'] = old_guid_formatted
+            break
     if guild_fix:
-        group_ids = level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
-        for group_id in group_ids:
-            if group_id['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
-                group_data = group_id['value']['RawData']['value']
+        for i, group in enumerate(level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']):
+            if group['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
+                group_data = group['value']['RawData']['value']
                 if 'individual_character_handle_ids' in group_data:
-                    for j in range(len(group_data['individual_character_handle_ids'])):
-                        if group_data['individual_character_handle_ids'][j]['instance_id'] == old_instance_id:
-                            group_data['individual_character_handle_ids'][j]['guid'] = new_guid_formatted
-                if 'admin_player_uid' in group_data and old_guid_formatted == group_data['admin_player_uid']:
-                    group_data['admin_player_uid'] = new_guid_formatted
+                    for h in group_data['individual_character_handle_ids']:
+                        if h['instance_id'] == old_instance_id:
+                            h['guid'] = new_guid_formatted
+                        elif h['instance_id'] == new_instance_id:
+                            h['guid'] = old_guid_formatted
+                if 'admin_player_uid' in group_data:
+                    if group_data['admin_player_uid'] == old_guid_formatted:
+                        group_data['admin_player_uid'] = new_guid_formatted
+                    elif group_data['admin_player_uid'] == new_guid_formatted:
+                        group_data['admin_player_uid'] = old_guid_formatted
                 if 'players' in group_data:
-                    for j in range(len(group_data['players'])):
-                        if old_guid_formatted == group_data['players'][j]['player_uid']:
-                            group_data['players'][j]['player_uid'] = new_guid_formatted
-    backup_folder = "Backups/Fix Host Save Manual"
-    backup_whole_directory(os.path.dirname(level_sav_path), backup_folder)
+                    for p in group_data['players']:
+                        if p['player_uid'] == old_guid_formatted:
+                            p['player_uid'] = new_guid_formatted
+                        elif p['player_uid'] == new_guid_formatted:
+                            p['player_uid'] = old_guid_formatted
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
-    if os.path.exists(new_sav_path): os.remove(new_sav_path)
-    os.rename(old_sav_path, new_sav_path)
-    messagebox.showinfo("Success", "Fix has been applied! Have fun!")
-    print(f"Success! Fix has been applied! Have fun!")
-    sys.exit()
+    json_to_sav(new_json, new_sav_path)
+    tmp_path = old_sav_path + '.tmp_swap'
+    os.rename(old_sav_path, tmp_path)
+    if os.path.exists(new_sav_path): os.rename(new_sav_path, old_sav_path)
+    os.rename(tmp_path, new_sav_path)
+    print('GUID swap complete!')
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
