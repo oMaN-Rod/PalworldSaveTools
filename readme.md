@@ -10,7 +10,7 @@
 ---
 
 If you get errors installing or using my tools, **PLEASE** install the prerequisites below first.  
-Afterwards, reset and update PST using **Option #8** from the menu.
+Afterwards, reset and update PST using **Option #18** from the menu.
 
 ---
 ## Prerequisites
