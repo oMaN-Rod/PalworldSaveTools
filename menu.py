@@ -14,7 +14,7 @@ def setup_environment():
         resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
     os.system('cls' if os.name == 'nt' else 'clear')
     os.makedirs("PalworldSave/Players", exist_ok=True)
-    if not os.path.exists("requirements_installed.flag"):
+    if not os.path.exists("venv"):
         print(f"{YELLOW_FONT}Setting up your environment...{RESET_FONT}")
         if not os.path.exists("venv"): subprocess.run([sys.executable, "-m", "venv", "venv"])
         bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
@@ -23,7 +23,6 @@ def setup_environment():
         pip_executable = os.path.join("venv", bin_dir, "pip")
         subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"])
         subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"])
-        with open("requirements_installed.flag", "w") as f: f.write("done")
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
     sys.executable = venv_python
@@ -115,10 +114,7 @@ def reset_update_tools():
     subprocess.run(["git", "remote", "remove", "origin"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "remote", "add", "origin", repo_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "fetch", "--all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    choice = input(f"{GREEN_FONT}Do you want a FULL reset? This will delete ALL untracked files. (y/n): {RESET_FONT}").strip().lower()
-    if choice == "y":
-        subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"{GREEN_FONT}PalworldSaveTools reset completed successfully.{RESET_FONT}")
+    subprocess.run(["git", "clean", "-fdx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "reset", "--hard", "origin/main"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if os.path.exists("venv"):
         if os.name == 'nt':
