@@ -236,7 +236,6 @@ SaveGames
 3. After loading, select:
    - **Source Player** (your old character)
    - **Target Player** (your new character)
-   - **Optional** (If you want to keep old guild id, to take old player's bases/etc, make sure to tick the option that says "Keep old Guild ID after Transfer".)
 4. Click `Start Transfer!` once confirmed.
 
 ---
@@ -282,3 +281,10 @@ SaveGames
    - Use Steam to GamePass converter. 
    - Wait few minutes.
    - Open game on GamePass and enjoy your updated save.
+
+3. **Character Transfer Failed Transfer To Original Guild***
+   - This feature IS not available for `Character Transfer`.
+   - `Character Transfer` is designed in mind for cross worlds/servers transferring.
+   - Source Character is being copied to Target's Character. This includes Pals and Inventory.
+   - Please use `Fix Host Save` if you are only transferring from host to server OR server to host. 
+   - This will enable you to keep your guilds. The same process as Character Transfer, but uses only ONE save. 
