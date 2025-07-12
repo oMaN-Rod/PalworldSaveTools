@@ -9,7 +9,7 @@
 - **Contact me on Discord:** Pylar1991
 ---
 
-If you get errors installing or using my tools, **PLEASE** follow the steps below first.  
+If you get errors installing or using my tools, **PLEASE** install the prerequisites below first.  
 Afterwards, reset and update PST using **Option #8** from the menu.
 
 ---
