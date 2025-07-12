@@ -139,24 +139,6 @@ def reset_update_tools():
     print(f"{GREEN_FONT}Update complete. All files have been replaced.{RESET_FONT}")
     os.system('pause' if os.name == 'nt' else 'read -n 1 -s -r -p "Press any key to continue..."')
     os.execv(original_executable, [original_executable] + sys.argv)
-def get_local_commit():
-    result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
-    return result.stdout.strip() if result.returncode == 0 else None
-def get_remote_commit():
-    result = subprocess.run(["git", "ls-remote", "origin", "refs/heads/main"], capture_output=True, text=True)
-    return result.stdout.split()[0] if result.returncode == 0 else None
-def check_and_update():
-    local = get_local_commit()
-    remote = get_remote_commit()
-    if local != remote:
-        print(f"Update available: local commit {local} differs from remote commit {remote}.")
-        choice = input("Would you like to update now? (y/n): ").strip().lower()
-        if choice == 'y':
-            reset_update_tools()
-        else:
-            print("Update postponed.")
-    else:
-        print("No updates available. You are up to date.")
 def about_tools():
     display_logo()
     print("PalworldSaveTools, all in one tool for fixing/transferring/editing/etc Palworld saves.")
@@ -224,7 +206,6 @@ if __name__ == "__main__":
             print(center_text(f"{RED_FONT}Invalid argument. Please pass a valid number.{RESET_FONT}"))
     else:
         while True:
-            check_and_update()
             tools_version, game_version = get_versions()
             set_console_title(f"PalworldSaveTools v{tools_version}")
             display_menu(tools_version, game_version)
