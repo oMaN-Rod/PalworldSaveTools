@@ -282,7 +282,7 @@ SaveGames
    - Wait few minutes.
    - Open game on GamePass and enjoy your updated save.
 
-3. **Character Transfer Failed Transfer To Original Guild***
+3. **Character Transfer Failed Transfer To Original Guild**
    - This feature IS not available for `Character Transfer`.
    - `Character Transfer` is designed in mind for cross worlds/servers transferring.
    - Source Character is being copied to Target's Character. This includes Pals and Inventory.
