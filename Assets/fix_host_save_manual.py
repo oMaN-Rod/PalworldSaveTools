@@ -83,8 +83,8 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
     json_to_sav(new_json, new_sav_path)
     tmp_path = old_sav_path + '.tmp_swap'
     os.rename(old_sav_path, tmp_path)
-    if os.path.exists(new_sav_path): os.rename(new_sav_path, old_sav_path)
-    os.rename(tmp_path, new_sav_path)
+    if os.path.exists(new_sav_path): os.rename(new_sav_path, os.path.join(save_path, 'Players', old_guid.upper() + '.sav'))
+    os.rename(tmp_path, os.path.join(save_path, 'Players', new_guid.upper() + '.sav'))
     print(f"Success! Fix has been applied! Have fun!")
     messagebox.showinfo("Success", "Fix has been applied! Have fun!")
     sys.exit()
