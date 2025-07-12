@@ -29,7 +29,6 @@ def setup_environment():
             shutil.rmtree("venv", ignore_errors=True)
             print(f"{YELLOW_FONT}venv has been erased.{RESET_FONT}")
             print(f"{RED_FONT}PLEASE follow the prerequisites on GitHub to be able to use this tool.{RESET_FONT}")
-            os.system('pause' if os.name == 'nt' else 'read -n 1 -s -r -p "Press any key to continue..."')
             sys.exit(1)
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
     venv_python = os.path.join("venv", bin_dir, "python.exe" if os.name == "nt" else "python")
