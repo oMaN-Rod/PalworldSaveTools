@@ -27,7 +27,7 @@ def setup_environment():
         if result.returncode != 0 or b"ERROR:" in result.stderr or b"Failed" in result.stderr or b"fatal:" in result.stderr:
             print(f"{RED_FONT}Dependency install failed. Deleting corrupted venv...{RESET_FONT}")
             shutil.rmtree("venv", ignore_errors=True)
-            print(f"{YELLOW_FONT}venv has been erased.{RESET_FONT}")
+            print(f"{YELLOW_FONT}venv has been deleted.{RESET_FONT}")
             print(f"{RED_FONT}PLEASE follow the prerequisites on GitHub to be able to use this tool.{RESET_FONT}")
             sys.exit(1)
     bin_dir = "Scripts" if os.path.exists(os.path.join("venv", "Scripts", "python.exe")) else "bin"
