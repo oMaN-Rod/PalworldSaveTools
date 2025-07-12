@@ -43,9 +43,7 @@
 - Lists all pals and their details.  
 - Displays last online time for players.  
 - Logs players and their data into `players.log`.  
-- Filters and deletes players based on inactivity or maximum number of pals.  
 - Logs and sorts players by the number of pals owned.  
-- Deletes players with fewer than a specified number of pals.  
 - Provides a **base map view**.  
 - Provides automated killnearestbase commands for PalDefender targeting inactive bases.  
 - Transfers saves between dedicated servers and single/coop worlds.  
