@@ -271,18 +271,19 @@ SaveGames
 
 1. **Hostile Pals After Character Transfer**  
    - After transferring a character, some Pals may act aggressive due to ownership issues.  
-   - Workaround: Add the affected Pal to your party, drop it, then pick it up again to fix ownership.
-   
-2. **Steam to GamePass converter not working or not keeping the changes**
-   - Please make sure to CLOSE the game on GamePass.
-   - Wait few minutes.
-   - Use Steam to GamePass converter. 
-   - Wait few minutes.
-   - Open game on GamePass and enjoy your updated save.
+   - **Workaround:** Add the affected Pal to your party, drop it, then pick it up again to fix ownership.
 
-3. **Character Transfer Failed Transfer To Original Guild**
-   - This feature IS not available for `Character Transfer`.
-   - `Character Transfer` is designed in mind for cross worlds/servers transferring.
-   - Source Character is being copied to Target's Character. This includes Pals and Inventory.
-   - Please use `Fix Host Save` if you are only transferring from host to server OR server to host. 
-   - This will enable you to keep your guilds. The same process as Character Transfer, but uses only ONE save. 
+2. **Steam to GamePass Converter Not Working or Not Keeping Changes**  
+   - Please make sure to **close the game** on GamePass.  
+   - Wait a few minutes.  
+   - Run the **Steam to GamePass converter**.  
+   - Wait a few more minutes.  
+   - Open the game on GamePass and enjoy your updated save.
+
+3. **Character Transfer: Guild Not Included**  
+   - Guilds do **not** transfer with your character—this is intentional.  
+   - `Character Transfer` is meant for **cross-world/server transfers**.  
+   - It moves your **character, inventory, and Pals**, but **not your guild**.  
+   - **Solutions:**  
+     - Use `Fix Host Save` for transfers **within the same save** to keep your guild.  
+     - Make someone else the **guild leader**, leave the guild, transfer, then get re-invited.
