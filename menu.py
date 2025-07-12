@@ -22,11 +22,12 @@ def setup_environment():
         pip_executable = os.path.join("venv", bin_dir, "pip.exe" if os.name == "nt" else "pip")
         sys.executable = venv_python
         subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"], check=True)
+        print(f"{YELLOW_FONT}Installing packages into venv...{RESET_FONT}")
         result = subprocess.run([pip_executable, "install", "--no-cache-dir", "-r", "requirements.txt"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0 or b"ERROR:" in result.stderr or b"Failed" in result.stderr or b"fatal:" in result.stderr:
             print(f"{RED_FONT}Dependency install failed. Deleting corrupted venv...{RESET_FONT}")
             shutil.rmtree("venv", ignore_errors=True)
-            print(f"{YELLOW_FONT}Virtual environment has been erased.{RESET_FONT}")
+            print(f"{YELLOW_FONT}venv has been erased.{RESET_FONT}")
             print(f"{RED_FONT}PLEASE follow the prerequisites on GitHub to be able to use this tool.{RESET_FONT}")
             os.system('pause' if os.name == 'nt' else 'read -n 1 -s -r -p "Press any key to continue..."')
             sys.exit(1)
