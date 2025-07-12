@@ -35,7 +35,7 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
             item['key']['PlayerUId']['value'] = old_guid_formatted
             break
     if guild_fix:
-        for i, group in enumerate(level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']):
+        for group in level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']:
             if group['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
                 group_data = group['value']['RawData']['value']
                 if 'individual_character_handle_ids' in group_data:
@@ -55,7 +55,30 @@ def fix_save(save_path, new_guid, old_guid, guild_fix=True):
                             p['player_uid'] = new_guid_formatted
                         elif p['player_uid'] == new_guid_formatted:
                             p['player_uid'] = old_guid_formatted
-    backup_whole_directory(os.path.dirname(level_sav_path), "Fix Host Save")
+    if old_guid_formatted.endswith('000000000001') or new_guid_formatted.endswith('000000000001'):
+        def deep_swap_ownership(data, old_uid, new_uid):
+            if isinstance(data, dict):
+                if data.get("OwnerPlayerUId", {}).get("value") == old_uid:
+                    data["OwnerPlayerUId"]["value"] = new_uid
+                for v in data.values():
+                    deep_swap_ownership(v, old_uid, new_uid)
+            elif isinstance(data, list):
+                for item in data:
+                    deep_swap_ownership(item, old_uid, new_uid)
+        deep_swap_ownership(level_json, old_guid_formatted, new_guid_formatted)
+        count = 0
+        def count_owner_uid(data, uid):
+            nonlocal count
+            if isinstance(data, dict):
+                if data.get("OwnerPlayerUId", {}).get("value") == uid:
+                    count += 1
+                for v in data.values():
+                    count_owner_uid(v, uid)
+            elif isinstance(data, list):
+                for item in data:
+                    count_owner_uid(item, uid)
+        count_owner_uid(level_json, new_guid_formatted)
+    backup_whole_directory(os.path.dirname(level_sav_path), "Backups/Fix Host Save")
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     json_to_sav(new_json, new_sav_path)

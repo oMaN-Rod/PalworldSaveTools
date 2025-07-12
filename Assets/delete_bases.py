@@ -295,8 +295,14 @@ def delete_selected_player():
             raw['players'] = keep_players
             admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
             keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
-            if admin_uid not in keep_uids:
-                raw['admin_player_uid'] = "00000000-0000-0000-0000-000000000000"
+            if not keep_players:
+                gid = group['key']
+                for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
+                    if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
+                        delete_base_camp(b, gid, loaded_level_json)
+                wsd['GroupSaveDataMap']['value'].remove(group)
+            elif admin_uid not in keep_uids:
+                raw['admin_player_uid'] = keep_players[0]['player_uid']
     if deleted:
         char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
         char_save_map[:] = [
@@ -437,7 +443,14 @@ def delete_inactive_players(folder_path, inactive_days=30):
             raw['players'] = keep_players
             admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
             keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
-            if admin_uid not in keep_uids: raw['admin_player_uid'] = "00000000-0000-0000-0000-000000000000"
+            if not keep_players:
+                gid = group['key']
+                for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
+                    if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
+                        delete_base_camp(b, gid, loaded_level_json)
+                wsd['GroupSaveDataMap']['value'].remove(group)
+            elif admin_uid not in keep_uids:
+                raw['admin_player_uid'] = keep_players[0]['player_uid']
     if deleted_info:
         valid_uids = {
             str(p.get('player_uid', '')).replace('-', '')
