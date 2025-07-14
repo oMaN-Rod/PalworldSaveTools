@@ -103,40 +103,6 @@ class MyWriter(FArchiveWriter):
         else:
             self.bool(True)
             self.data.write(u)
-OwnerPlayerUIdSearchPrefix = b'\x0f\x00\x00\x00OwnerPlayerUId\x00\x0f\x00\x00\x00StructProperty\x00\x10\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00Guid\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-LocalIdSearchPrefix = b'\x16\x00\x00\x00LocalIdInCreatedWorld\x00\x0f\x00\x00\x00StructProperty\x00\x10\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00Guid\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-def find_id_match_prefix(encoded_bytes, prefix):
-    if isinstance(encoded_bytes, dict):
-        encoded_bytes = encoded_bytes.get('value', b'')
-    start_idx = encoded_bytes.find(prefix)
-    if start_idx == -1:
-        return None
-    start_idx += len(prefix)
-    return encoded_bytes[start_idx:start_idx + 16]
-def find_all_ids_match_prefix(encoded_bytes, prefix):
-    if isinstance(encoded_bytes, dict):
-        encoded_bytes = encoded_bytes.get('value', b'')
-    last_idx = 0
-    start_idx = encoded_bytes.find(prefix)
-    ids = []
-    while start_idx != last_idx - 1 and start_idx != -1:
-        start_idx += len(prefix)
-        last_idx = start_idx + 16
-        ids.append(encoded_bytes[start_idx:last_idx])
-        start_idx = encoded_bytes[last_idx:].find(prefix)
-        if start_idx != -1:
-            start_idx += last_idx
-    return ids
-def find_all_occurrences_with_prefix(encoded_bytes, prefix):
-    last_idx = 0
-    start_idx = encoded_bytes.find(prefix)
-    end_indices = []
-    while start_idx != last_idx - 1:
-        start_idx += len(prefix)
-        last_idx = start_idx
-        end_indices.append(start_idx)
-        start_idx = encoded_bytes[last_idx:].find(prefix) + last_idx
-    return end_indices
 def fast_deepcopy(json_dict):
     return pickle.loads(pickle.dumps(json_dict, -1))
 class SkipGvasFile(GvasFile):
@@ -190,26 +156,38 @@ def load_player_data():
     return True
 def find_host_and_pals():
     global exported_map, param_maps, palcount
-    host_guid = UUID(selected_source_player)
+    host_guid = UUID.from_str(selected_source_player)
+    print(f"Looking for pals of host GUID: {host_guid}")
     host_instance_id = host_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
-    pal_player_uid_filters = [b'\x00'*16, b'\x00'*12 + b'\x01\x00\x00\x00']
     found = False
     exported_map = {}
     param_maps = []
     palcount = 0
     for character_save_param in level_json["CharacterSaveParameterMap"]["value"]:
+        player_uid = character_save_param["key"]["PlayerUId"]["value"]
         instance_id = character_save_param["key"]["InstanceId"]["value"]
         if instance_id == host_instance_id:
             exported_map = character_save_param
             found = True
-        elif character_save_param["key"]["PlayerUId"]["value"] in pal_player_uid_filters:
-            if find_id_match_prefix(character_save_param['value']['RawData']['value'], OwnerPlayerUIdSearchPrefix) == host_guid:
-                param_maps.append(fast_deepcopy(character_save_param))
-                palcount += 1
+        else:
+            pal_raw = character_save_param['value']['RawData']['value']
+            try:
+                pal_owner_guid = pal_raw["object"]["SaveParameter"]["value"]["OwnerPlayerUId"]["value"]
+                if pal_owner_guid == host_guid:
+                    param_maps.append(fast_deepcopy(character_save_param))
+                    palcount += 1
+            except Exception as e:
+                pass
+    print(f"Total pals found for host {host_guid}: {palcount}")
     if not found:
         messagebox.showerror("Error!", "Couldn't find source character instance data in the source world save!")
         return False
     return True
+def gather_target_containers():
+    global targ_inv_pals, targ_inv_otomo
+    inv_info = targ_json["SaveData"]["value"].get("InventoryInfo", targ_json["SaveData"]["value"].get("inventoryInfo"))["value"]
+    targ_inv_pals = targ_json["SaveData"]["value"]["PalStorageContainerId"]
+    targ_inv_otomo = targ_json["SaveData"]["value"]["OtomoCharacterContainerId"]
 def gather_host_containers():
     global inv_main, inv_key, inv_weps, inv_armor, inv_foodbag, inv_pals, inv_otomo
     global host_main, host_key, host_weps, host_armor, host_foodbag, host_pals, host_otomo, dynamic_guids
@@ -223,40 +201,53 @@ def gather_host_containers():
     inv_otomo = host_json["SaveData"]["value"]["OtomoCharacterContainerId"]
     host_main = host_key = host_weps = host_armor = host_foodbag = host_pals = host_otomo = {}
     count = 0
+    print("=== Character Containers ===")
     for container in level_json["CharacterContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_pals["value"]["ID"]["value"]:
             host_pals = container
             count += 1
+            print("Found host_pals container")
         elif container_id == inv_otomo["value"]["ID"]["value"]:
             host_otomo = container
             count += 1
+            print("Found host_otomo container")
         if count >= 2: break
-    dynamic_guids = set()
+    print("=== Item Containers ===")
     for container in level_json["ItemContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
+        slots = container['value']['Slots']['value']['values']
+        guids = {slot.get('RawData', {}).get('value', {}).get('item', {}).get('dynamic_id', {}).get('local_id_in_created_world') 
+                 for slot in slots}
+        guids = {g for g in guids if str(g) != "00000000-0000-0000-0000-000000000000"}
         if container_id == inv_main["value"]["ID"]["value"]:
-            dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
+            dynamic_guids = guids
             host_main = container
             count += 1
+            print("Found host_main container")
         elif container_id == inv_key["value"]["ID"]["value"]:
-            dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
+            dynamic_guids |= guids
             host_key = container
             count += 1
+            print("Found host_key container")
         elif container_id == inv_weps["value"]["ID"]["value"]:
-            dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
+            dynamic_guids |= guids
             host_weps = container
             count += 1
+            print("Found host_weps container")
         elif container_id == inv_armor["value"]["ID"]["value"]:
-            dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
+            dynamic_guids |= guids
             host_armor = container
             count += 1
+            print("Found host_armor container")
         elif container_id == inv_foodbag["value"]["ID"]["value"]:
-            dynamic_guids |= set(find_all_ids_match_prefix(container['value']['Slots']['value'], LocalIdSearchPrefix))
+            dynamic_guids |= guids
             host_foodbag = container
             count += 1
+            print("Found host_foodbag container")
         if count >= 7: break
-    dynamic_guids.discard(b'\x00' * 16)
+    dynamic_guids = {g for g in dynamic_guids if str(g) != "00000000-0000-0000-0000-000000000000"}
+    print(f"Total containers found: {count}")
 def update_targ_tech_and_data():
     targ_save = targ_json["SaveData"]["value"]
     host_save = host_json["SaveData"]["value"]
@@ -276,44 +267,69 @@ def update_targ_tech_and_data():
         del targ_json['RecordData']
 def update_target_character_instance():
     char_instanceid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["InstanceId"]["value"]
+    print(f"Target character InstanceId: {char_instanceid}")
     found = False
     for i, char_save_instance in enumerate(targ_lvl["CharacterSaveParameterMap"]["value"]):
         instance_id = char_save_instance["key"]["InstanceId"]["value"]
         if instance_id == char_instanceid:
             char_save_instance['value'] = exported_map['value']
             found = True
+            print(f"Updated character instance at index {i} with InstanceId: {instance_id}")
             break
     if not found:
         messagebox.showerror("Error!", "Couldn't find target character instance in target world save.")
         return False
     return True
 def patch_pal_data():
+    global targ_uid, keep_old_guild_id, guild_items_json, host_pals, host_otomo, inv_pals, inv_otomo, guild_item_instances
+    if 'guild_item_instances' not in globals():
+        guild_item_instances = set()
+    if 'guild_items_json' not in globals():
+        guild_items_json = []
     for pal_param in param_maps:
-        pal_data = pal_param['value']['RawData']['value']
-        slot_id_idx = pal_data.find(b'\x07\x00\x00\x00SlotID\x00\x0f\x00\x00\x00StructProperty\x00')
-        if slot_id_idx == -1: continue
-        pal_container_id_bytes = pal_data[slot_id_idx + 217:slot_id_idx + 233]
-        pal_data_bytearray = bytearray(pal_data)
-        if pal_container_id_bytes == host_inv_pals["value"]["ID"]["value"]:
-            pal_data_bytearray[slot_id_idx + 217:slot_id_idx + 233] = inv_pals["value"]["ID"]["value"]
-        elif pal_container_id_bytes == host_inv_otomo["value"]["ID"]["value"]:
-            pal_data_bytearray[slot_id_idx + 217:slot_id_idx + 233] = inv_otomo["value"]["ID"]["value"]
-        player_uid_start_idx = pal_data.find(OwnerPlayerUIdSearchPrefix) + len(OwnerPlayerUIdSearchPrefix)
-        pal_data_bytearray[player_uid_start_idx:player_uid_start_idx + 16] = targ_uid
-        pal_data_bytearray[-16:] = group_id
-        pal_param['value']['RawData']['value'] = bytes(pal_data_bytearray)
+        pal_data = pal_param.get('value', {}).get('RawData', {}).get('value', {})
+        save_param = pal_data.get("object", {}).get("SaveParameter", {}).get("value", {})
+        group_id = pal_data.get("group_id")
+        group_id_str = safe_uuid_str(group_id)
+        slot_id = save_param.get("SlotId", {}).get("value", {})
+        container_id = slot_id.get("ContainerId", {}).get("value", {}).get("ID", {}).get("value")
+        if container_id == inv_pals["value"]["ID"]["value"]:
+            slot_id["ContainerId"]["value"]["ID"]["value"] = targ_inv_pals["value"]["ID"]["value"]
+        elif container_id == inv_otomo["value"]["ID"]["value"]:
+            slot_id["ContainerId"]["value"]["ID"]["value"] = targ_inv_otomo["value"]["ID"]["value"]
+        save_param["OwnerPlayerUId"]["value"] = targ_uid
+        save_param["LastNickNameModifierPlayerUid"]["value"] = targ_uid
+        save_param["OldOwnerPlayerUIds"]["value"]["values"] = [targ_uid]
+        if group_id is not None:
+            save_param["group_id"] = {
+                "type": "StructProperty",
+                "struct_type": "Guid",
+                "struct_id": "00000000-0000-0000-0000-000000000000",
+                "id": None,
+                "value": group_id_str
+            }
         if not keep_old_guild_id and pal_param["key"]["InstanceId"]["value"] not in guild_item_instances:
-            guild_items_json.append({"guid": pal_param["key"]["PlayerUId"]["value"], "instance_id": pal_param["key"]["InstanceId"]["value"]})
-def replace_character_save_params(targ_lvl, param_maps, targ_uid, OwnerPlayerUIdSearchPrefix):
+            guild_items_json.append({
+                "guid": pal_param["key"]["PlayerUId"]["value"],
+                "instance_id": pal_param["key"]["InstanceId"]["value"]
+            })
+def replace_character_save_params(targ_lvl, param_maps, targ_uid):
     new_character_save_param_map = []
     removed = 0
     for entity in targ_lvl["CharacterSaveParameterMap"]["value"]:
-        if find_id_match_prefix(entity['value']['RawData']['value'], OwnerPlayerUIdSearchPrefix) == targ_uid:
+        try:
+            owner_uid = entity['value']['RawData']['value']['object']['SaveParameter']['value']['OwnerPlayerUId']['value']
+        except KeyError:
+            new_character_save_param_map.append(entity)
+            continue
+        if owner_uid == targ_uid:
             removed += 1
             continue
         new_character_save_param_map.append(entity)
     new_character_save_param_map += param_maps
     targ_lvl["CharacterSaveParameterMap"]["value"] = new_character_save_param_map
+    print(f"Removed {removed} pals from: {targ_uid}")
+    print(f"Added {len(param_maps)} pals to: {owner_uid}")
 def replace_containers():
     global targ_lvl, inv_pals, inv_otomo, host_pals, host_otomo
     global inv_main, inv_key, inv_weps, inv_armor, inv_foodbag
@@ -324,49 +340,69 @@ def replace_containers():
         if container_id == inv_pals["value"]["ID"]["value"]:
             container['value']['Slots']['value'] = host_pals['value']['Slots']['value']
             count += 1
+            print("Replaced targ_lvl host_pals container slots")
         elif container_id == inv_otomo["value"]["ID"]["value"]:
             container['value']['Slots']['value'] = host_otomo['value']['Slots']['value']
             count += 1
+            print("Replaced targ_lvl host_otomo container slots")
         if count >= 2: break
     for container in targ_lvl["ItemContainerSaveData"]["value"]:
         container_id = container["key"]["ID"]["value"]
         if container_id == inv_main["value"]["ID"]["value"]:
             container["value"] = host_main["value"]
             count += 1
+            print("Replaced targ_lvl host_main container value")
         elif container_id == inv_key["value"]["ID"]["value"]:
             container["value"] = host_key["value"]
             count += 1
+            print("Replaced targ_lvl host_key container value")
         elif container_id == inv_weps["value"]["ID"]["value"]:
             container["value"] = host_weps["value"]
             count += 1
+            print("Replaced targ_lvl host_weps container value")
         elif container_id == inv_armor["value"]["ID"]["value"]:
             container["value"] = host_armor["value"]
             count += 1
+            print("Replaced targ_lvl host_armor container value")
         elif container_id == inv_foodbag["value"]["ID"]["value"]:
             container["value"] = host_foodbag["value"]
             count += 1
+            print("Replaced targ_lvl host_foodbag container value")
         if count >= 7: break
+    print(f"Total containers replaced: {count}")
 def update_dynamic_containers():
+    def extract_guid(container):
+        try:
+            id_dict = container['RawData']['value']['id']
+            local_id = id_dict.get('local_id_in_created_world')
+            return str(local_id) if local_id else None
+        except Exception:
+            return None
     global level_additional_dynamic_containers
+    level_additional_dynamic_containers = [
+        (dynamic_container, extract_guid(dynamic_container))
+        for dynamic_container in level_json['DynamicItemSaveData']['value']['values']
+    ]
     target_dynamic_containers = targ_lvl['DynamicItemSaveData']['value']['values']
     repeated_indices = set()
+    replaced_count = 0
     for i, target_dynamic_container in enumerate(target_dynamic_containers):
-        target_container_id = target_dynamic_container.get('ID')
-        if target_container_id is None:
+        target_guid = extract_guid(target_dynamic_container)
+        if not target_guid:
             continue
-        target_guid = find_id_match_prefix(target_container_id['value'], LocalIdSearchPrefix)
-        if target_guid in dynamic_guids:
-            for j, (dynamic_container, container_local_id) in enumerate(level_additional_dynamic_containers):
-                if target_guid == container_local_id:
-                    target_dynamic_containers[i] = dynamic_container
-                    repeated_indices.add(j)
-                    break
-    targ_lvl['DynamicItemSaveData']['value']['values'] += [container for i, (container, local_id) in enumerate(level_additional_dynamic_containers) if i not in repeated_indices]
+        for j, (dynamic_container, container_local_id) in enumerate(level_additional_dynamic_containers):
+            if target_guid == container_local_id:
+                target_dynamic_containers[i] = dynamic_container
+                repeated_indices.add(j)
+                replaced_count += 1
+                break
+    print(f"Total dynamic containers replaced: {replaced_count}")
 def sync_inventory_to_targ_json():
     save_data = targ_json["SaveData"]["value"]
     save_data["InventoryInfo"] = host_json["SaveData"]["value"].get("InventoryInfo", host_json["SaveData"]["value"].get("inventoryInfo"))
     save_data["PalStorageContainerId"] = host_json["SaveData"]["value"]["PalStorageContainerId"]
     save_data["OtomoCharacterContainerId"] = host_json["SaveData"]["value"]["OtomoCharacterContainerId"]
+    print("Synced inventory, PalStorage & Otomo IDs to target JSON")
 def save_and_backup():
     global targ_json_gvas
     WORLDSAVESIZEPREFIX = b'\x0e\x00\x00\x00worldSaveData\x00\x0f\x00\x00\x00StructProperty\x00'
@@ -391,20 +427,20 @@ def main():
     global host_main, host_key, host_weps, host_armor, host_foodbag
     global host_pals, host_otomo, dynamic_guids, inv_pals, inv_otomo
     global targ_uid, group_id, guild_item_instances, guild_items_json
-    global host_inv_pals, host_inv_otomo, level_additional_dynamic_containers
+    global host_inv_pals, host_inv_otomo, targ_inv_pals, targ_inv_otomo, level_additional_dynamic_containers
     host_guid = UUID.from_str(selected_source_player)
+    targ_uid = UUID.from_str(selected_target_player)
     if not load_player_data(): return
     if not find_host_and_pals(): return
+    gather_target_containers()
     gather_host_containers()
     update_targ_tech_and_data()
     if not update_target_character_instance(): return
     patch_pal_data()
-    targ_uid = targ_json["SaveData"]["value"]["IndividualId"]["value"]["PlayerUId"]["value"]
     host_inv_pals = host_pals
     host_inv_otomo = host_otomo
-    if 'level_additional_dynamic_containers' not in globals():
-        level_additional_dynamic_containers = []
-    replace_character_save_params(targ_lvl, param_maps, targ_uid, OwnerPlayerUIdSearchPrefix)
+    if 'level_additional_dynamic_containers' not in globals(): level_additional_dynamic_containers = []
+    replace_character_save_params(targ_lvl, param_maps, targ_uid)
     replace_containers()
     sync_inventory_to_targ_json()
     update_dynamic_containers()
