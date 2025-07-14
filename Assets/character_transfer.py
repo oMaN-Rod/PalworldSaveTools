@@ -200,6 +200,7 @@ def gather_host_containers():
     inv_pals = host_json["SaveData"]["value"]["PalStorageContainerId"]
     inv_otomo = host_json["SaveData"]["value"]["OtomoCharacterContainerId"]
     host_main = host_key = host_weps = host_armor = host_foodbag = host_pals = host_otomo = {}
+    dynamic_guids = set()
     count = 0
     print("=== Character Containers ===")
     for container in level_json["CharacterContainerSaveData"]["value"]:
