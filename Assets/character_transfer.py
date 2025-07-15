@@ -307,7 +307,7 @@ def update_guild_data(targ_lvl, targ_json, host_guid, char_instanceid, keep_old_
                     guild_items_json = group_data["value"]["RawData"]["value"]["individual_character_handle_ids"]
                     break
         if group_id is None:
-            messagebox.showerror(message='Guild ID not found, aboorting')
+            messagebox.showerror(message='Guild ID not found, aborting...')
             return False
         guild_item_instances = set(guild_item['instance_id'] for guild_item in guild_items_json)
     else:
@@ -358,7 +358,7 @@ def update_guild_data(targ_lvl, targ_json, host_guid, char_instanceid, keep_old_
                 if old_guild is not None:
                     break
             if old_guild is None:
-                messagebox.showerror(message="No guild containing the source player found in the source either, aborting.")
+                messagebox.showerror(message="No guild containing the source player found in the source either, aborting...")
                 return False
             group_id = old_guild["key"]
             if old_guild["value"]["RawData"]["value"]["admin_player_uid"] == host_guid:
@@ -376,17 +376,14 @@ def update_guild_data(targ_lvl, targ_json, host_guid, char_instanceid, keep_old_
     return True
 def main():
     global host_guid, targ_uid, exported_map
-    if None in [level_sav_path, t_level_sav_path, selected_source_player, selected_target_player]:
-        messagebox.showerror(message='Please have both level files and players selected before starting transfer.')
-        return
-    response = messagebox.askyesno(title='WARNING', message='WARNING: This will overwrite inventory and pals in the target save. Back up your files first!')
-    if not response: return
+    if not validate_inputs(): return
     host_guid = UUID.from_str(selected_source_player)
     targ_uid = UUID.from_str(selected_target_player)
     if not load_json_files(): return
     host_inv_ids = gather_inventory_ids(host_json)
     targ_inv_ids = gather_inventory_ids(targ_json)
     gather_host_containers(host_inv_ids)
+    update_targ_tech_and_data()
     exported_map = get_exported_map(host_guid)
     if not exported_map:
         messagebox.showerror("Error!", f"Couldn't find exported_map for OwnerUID {host_guid}")
@@ -398,11 +395,9 @@ def main():
     replace_containers(targ_inv_ids)
     gather_and_update_dynamic_containers()
     update_target_character_with_exported_map(targ_uid, exported_map)
-    if not update_guild_data(targ_lvl, targ_json, host_guid, targ_uid, keep_old_guild_id, source_guild_dict):
-        return
-    print("[DEBUG] Writing back modified data.")
-    targ_json_gvas.properties = targ_json
+    if not update_guild_data(targ_lvl, targ_json, host_guid, targ_uid, keep_old_guild_id, source_guild_dict): return
     update_targ_tech_and_data()
+    print("[DEBUG] Writing back modified data.")
     save_and_backup()
     print("Transfer Successful!")
     messagebox.showinfo(title="Transfer Successful!", message='Transfer Successful!')
