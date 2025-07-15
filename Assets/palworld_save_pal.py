@@ -21,13 +21,13 @@ def get_release_assets(repo_owner, repo_name, version):
         assets = release_data['assets']
         for asset in assets:
             print(f"Found asset: {asset['name']}")
-            if "win-standalone" in asset['name'] and asset['name'].endswith('.zip'):
+            name = asset['name'].lower()
+            if 'windows-standalone' in name and name.endswith('.zip'):
                 return asset['browser_download_url']
         print("No matching assets found.")
-        return None
     else:
         print(f"Error fetching release info: {response.status_code}")
-        return None
+    return None
 def extract_zip(directory, partial_name, extract_to):
     for root, _, files in os.walk(directory):
         for file in files:
@@ -65,14 +65,19 @@ def main():
             print("Downloading Palworld Save Pal...")
             zip_file = download_from_github(repo_owner, repo_name, version, ".")
             if zip_file:
-                extract_zip(".", "win-standalone", "psp_windows")
+                extract_zip(".", "windows-standalone", "psp_windows")
                 print(f"Removed downloaded file: {zip_file}")
-                os.remove(zip_file)
-            exe_path = find_exe("psp_windows")
-            if exe_path:
-                print("Opening Palworld Save Pal...")
-                os.chdir(os.path.dirname(exe_path))
-                subprocess.Popen("psp.exe")
-            else: print("Failed to download Palworld Save Pal...")
-    else: print("Unable to fetch latest release version.")
+                try: os.remove(zip_file)
+                except FileNotFoundError: pass
+                exe_path = find_exe("psp_windows")
+                if exe_path:
+                    print("Opening Palworld Save Pal...")
+                    os.chdir(os.path.dirname(exe_path))
+                    subprocess.Popen("psp.exe")
+                else:
+                    print("Extraction succeeded but could not find psp.exe.")
+            else:
+                print("Failed to download Palworld Save Pal...")
+    else:
+        print("Unable to fetch latest release version.")
 if __name__ == "__main__": main()
