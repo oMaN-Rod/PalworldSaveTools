@@ -383,7 +383,6 @@ def main():
     host_inv_ids = gather_inventory_ids(host_json)
     targ_inv_ids = gather_inventory_ids(targ_json)
     gather_host_containers(host_inv_ids)
-    update_targ_tech_and_data()
     exported_map = get_exported_map(host_guid)
     if not exported_map:
         messagebox.showerror("Error!", f"Couldn't find exported_map for OwnerUID {host_guid}")
