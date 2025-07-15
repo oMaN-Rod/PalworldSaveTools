@@ -179,27 +179,27 @@ def delete_base_camp(base, guild_id, loaded_json):
     raw_data = base_val.get('RawData', {}).get('value', {})
     base_id = base['key']
     base_group_id = raw_data.get('group_id_belong_to')
-    if not are_equal_uuids(base_group_id, guild_id): return False
-    group_data_map = loaded_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']
-    group_data = next((g for g in group_data_map if are_equal_uuids(g['key'], guild_id)), None)
-    if not group_data: return False
-    group_raw = group_data['value']['RawData']['value']
-    base_ids = group_raw.get('base_ids', [])
-    mp_points = group_raw.get('map_object_instance_ids_base_camp_points', [])
-    if base_id in base_ids:
-        idx = base_ids.index(base_id)
-        base_ids.pop(idx)
-        if mp_points and idx < len(mp_points): mp_points.pop(idx)
-    map_objs = loaded_json['properties']['worldSaveData']['value']['MapObjectSaveData']['value']['values']
+    if guild_id and not are_equal_uuids(base_group_id, guild_id): return False
+    wsd = loaded_json['properties']['worldSaveData']['value']
+    group_data_map = wsd['GroupSaveDataMap']['value']
+    group_data = next((g for g in group_data_map if are_equal_uuids(g['key'], guild_id)), None) if guild_id else None
+    if group_data:
+        group_raw = group_data['value']['RawData']['value']
+        base_ids = group_raw.get('base_ids', [])
+        mp_points = group_raw.get('map_object_instance_ids_base_camp_points', [])
+        if base_id in base_ids:
+            idx = base_ids.index(base_id)
+            base_ids.pop(idx)
+            if mp_points and idx < len(mp_points): mp_points.pop(idx)
+    map_objs = wsd['MapObjectSaveData']['value']['values']
     map_obj_ids_to_delete = {m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id')
                              for m in map_objs
                              if m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('base_camp_id_belong_to') == base_id}
     if map_obj_ids_to_delete:
-        mod_list = loaded_json['properties']['worldSaveData']['value']['MapObjectSaveData']['value']['values']
-        mod_list[:] = [m for m in mod_list if m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id') not in map_obj_ids_to_delete]
-    base_list = loaded_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value']
+        map_objs[:] = [m for m in map_objs if m.get('Model', {}).get('value', {}).get('RawData', {}).get('value', {}).get('instance_id') not in map_obj_ids_to_delete]
+    base_list = wsd['BaseCampSaveData']['value']
     base_list[:] = [b for b in base_list if b['key'] != base_id]
-    print(f"Deleted base camp {base_id} for guild {guild_id}")
+    print(f"Deleted base camp {base_id} for guild {guild_id or 'orphaned'}")
     return True
 def delete_selected_guild():
     folder = current_save_path
@@ -221,7 +221,9 @@ def delete_selected_guild():
             break
     for uid in deleted_uids:
         f = os.path.join(players_folder, uid + '.sav')
+        f_dps = os.path.join(players_folder, f"{uid}_dps.sav")
         if os.path.exists(f): os.remove(f)
+        if os.path.exists(f_dps): os.remove(f_dps)
     for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
         if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
             delete_base_camp(b, gid, loaded_level_json)
@@ -243,6 +245,7 @@ def delete_selected_guild():
         )
     ]
     clean_character_save_parameter_map(wsd, valid_uids)
+    delete_orphaned_bases()
     refresh_all()
     messagebox.showinfo("Deleted", "Guild, players, and all their pals successfully deleted")
 def delete_selected_base():
@@ -257,6 +260,7 @@ def delete_selected_base():
         if str(b['key']) == bid:
             delete_base_camp(b, b['value']['RawData']['value'].get('group_id_belong_to'), loaded_level_json)
             break
+    delete_orphaned_bases()
     refresh_all()
     messagebox.showinfo("Deleted", "Base deleted")
 def get_owner_uid(entry):
@@ -287,8 +291,9 @@ def delete_selected_player():
             player_uid = str(player.get('player_uid', '')).replace('-', '')
             if player_uid == uid:
                 player_path = os.path.join(players_folder, player_uid + '.sav')
-                if os.path.exists(player_path):
-                    os.remove(player_path)
+                dps_path = os.path.join(players_folder, f"{player_uid}_dps.sav")
+                if os.path.exists(player_path): os.remove(player_path)
+                if os.path.exists(dps_path): os.remove(dps_path)
                 deleted = True
             else:
                 keep_players.append(player)
@@ -321,6 +326,7 @@ def delete_selected_player():
             for p in g['value']['RawData']['value'].get('players', [])
         }
         clean_character_save_parameter_map(wsd, valid_uids)
+        delete_orphaned_bases()
         refresh_all()
         messagebox.showinfo("Deleted", "Player deleted successfully!")
     else:
@@ -348,8 +354,27 @@ def delete_inactive_bases():
         gid = as_uuid(b['value']['RawData']['value'].get('group_id_belong_to'))
         if gid in to_clear:
             if delete_base_camp(b, gid, loaded_level_json): cnt += 1
+    delete_orphaned_bases()
     refresh_all()
     messagebox.showinfo("Done", f"Deleted {cnt} bases")
+def delete_orphaned_bases():
+    folder = current_save_path
+    if not folder: return print("No save loaded!")
+    wsd = loaded_level_json['properties']['worldSaveData']['value']
+    valid_guild_ids = {
+        as_uuid(g['key']) for g in wsd.get('GroupSaveDataMap', {}).get('value', [])
+        if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+    }
+    base_list = wsd.get('BaseCampSaveData', {}).get('value', [])[:]
+    cnt = 0
+    for b in base_list:
+        raw = b['value']['RawData']['value']
+        gid_raw = raw.get('group_id_belong_to')
+        gid = as_uuid(gid_raw) if gid_raw else None
+        if not gid or gid not in valid_guild_ids:
+            if delete_base_camp(b, gid, loaded_level_json): cnt += 1
+    refresh_all()
+    if cnt > 0: print(f"Deleted {cnt} orphaned base(s)")
 def is_valid_level(level):
     try:
         return int(level) > 0
@@ -394,6 +419,7 @@ def delete_empty_guilds():
             if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
                 delete_base_camp(b, gid, loaded_level_json)
         group_data.remove(g)
+    delete_orphaned_bases()
     refresh_all()
     messagebox.showinfo("Done", f"Deleted {len(to_delete)} guild(s)")
 def on_player_select(evt):
@@ -456,7 +482,10 @@ def delete_inactive_players(folder_path, inactive_days=30):
                 raw['admin_player_uid'] = keep_players[0]['player_uid']
     for uid in to_delete_uids:
         player_path = os.path.join(players_folder, uid + '.sav')
+        dps_path = os.path.join(players_folder, f"{uid}_dps.sav")
         try: os.remove(player_path)
+        except FileNotFoundError: pass
+        try: os.remove(dps_path)
         except FileNotFoundError: pass
     if to_delete_uids:
         valid_uids = {
@@ -468,6 +497,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
         wsd_char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
         wsd_char_map[:] = [entry for entry in wsd_char_map
                            if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") in valid_uids]
+        delete_orphaned_bases()
         refresh_all()
         total_players_after = sum(
             len(g['value']['RawData']['value'].get('players', []))
@@ -542,6 +572,7 @@ def delete_duplicated_players():
             uid_to_group[uid] = group
             filtered_players.append(player)
         raw['players'] = filtered_players
+    delete_orphaned_bases()
     refresh_all()
     for d in deleted_players:
         print(f"KEPT    -> UID: {d['kept_uid']}, Name: {d['kept_name']}, Guild ID: {d['kept_gid']}, Last Online: {format_duration(tick_now - d['kept_last_online'])}")
