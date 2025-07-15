@@ -415,13 +415,19 @@ def delete_inactive_players(folder_path, inactive_days=30):
     build_player_levels()
     wsd = loaded_level_json['properties']['worldSaveData']['value']
     tick_now = wsd['GameTimeSaveData']['value']['RealDateTimeTicks']['value']
-    deleted_info = []
     group_data_list = wsd['GroupSaveDataMap']['value']
-    for group in group_data_list:
+    deleted_info = []
+    to_delete_uids = set()
+    total_players_before = sum(
+        len(g['value']['RawData']['value'].get('players', []))
+        for g in group_data_list if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+    )
+    for group in group_data_list[:]:
         if group['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
         raw = group['value']['RawData']['value']
         original_players = raw.get('players', [])
         keep_players = []
+        admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
         for player in original_players:
             uid_obj = player.get('player_uid', '')
             uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj).replace('-', '')
@@ -430,38 +436,50 @@ def delete_inactive_players(folder_path, inactive_days=30):
             level = player_levels.get(uid)
             inactive = last_online is not None and ((tick_now - last_online) / 864000000000) >= inactive_days
             if inactive or not is_valid_level(level):
-                player_path = os.path.join(players_folder, uid + '.sav')
-                if os.path.exists(player_path): os.remove(player_path)
                 reason = "Inactive" if inactive else "Invalid level"
                 extra = f" - Inactive for {format_duration((tick_now - last_online)/1e7)}" if inactive and last_online else ""
                 deleted_info.append(f"{player_name} ({uid}) - {reason}{extra}")
-                char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
-                char_map[:] = [entry for entry in char_map
-                               if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") != uid]
+                to_delete_uids.add(uid)
             else:
                 keep_players.append(player)
         if len(keep_players) != len(original_players):
             raw['players'] = keep_players
-            admin_uid = str(raw.get('admin_player_uid', '')).replace('-', '')
-            keep_uids = [str(p.get('player_uid', '')).replace('-', '') for p in keep_players]
+            keep_uids = {str(p.get('player_uid', '')).replace('-', '') for p in keep_players}
             if not keep_players:
                 gid = group['key']
-                for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
+                base_camps = wsd.get('BaseCampSaveData', {}).get('value', [])
+                for b in base_camps[:]:
                     if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
                         delete_base_camp(b, gid, loaded_level_json)
-                wsd['GroupSaveDataMap']['value'].remove(group)
+                group_data_list.remove(group)
             elif admin_uid not in keep_uids:
                 raw['admin_player_uid'] = keep_players[0]['player_uid']
-    if deleted_info:
+    for uid in to_delete_uids:
+        player_path = os.path.join(players_folder, uid + '.sav')
+        try: os.remove(player_path)
+        except FileNotFoundError: pass
+    if to_delete_uids:
         valid_uids = {
             str(p.get('player_uid', '')).replace('-', '')
-            for g in wsd['GroupSaveDataMap']['value']
+            for g in group_data_list
             if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
             for p in g['value']['RawData']['value'].get('players', [])
         }
-        clean_character_save_parameter_map(wsd, valid_uids)
+        wsd_char_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+        wsd_char_map[:] = [entry for entry in wsd_char_map
+                           if str(entry.get("key", {}).get("PlayerUId", {}).get("value", "")).replace("-", "") in valid_uids]
         refresh_all()
-        messagebox.showinfo("Success", f"Deleted {len(deleted_info)} player(s)!")
+        total_players_after = sum(
+            len(g['value']['RawData']['value'].get('players', []))
+            for g in group_data_list if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
+        )
+        result_msg = (
+            f"Players before deletion: {total_players_before}\n"
+            f"Players deleted: {len(deleted_info)}\n"
+            f"Players after deletion: {total_players_after}"
+        )
+        print(result_msg)
+        messagebox.showinfo("Success", result_msg)
     else:
         messagebox.showinfo("Info", "No players found for deletion.")
 def delete_duplicated_players():
@@ -475,60 +493,55 @@ def delete_duplicated_players():
     uid_to_player = {}
     uid_to_group = {}
     deleted_players = []
-    def format_duration(ticks):
-        total_seconds = int(ticks / 1e7)
-        days, rem = divmod(total_seconds, 86400)
-        hours, rem = divmod(rem, 3600)
-        minutes, _ = divmod(rem, 60)
-        return f"{days}d:{hours}h:{minutes}m ago"
+    format_duration = lambda ticks: f"{int(ticks / 864000000000)}d:{int((ticks % 864000000000) / 36000000000)}h:{int((ticks % 36000000000) / 600000000)}m ago"
     for group in group_data_list:
         if group['value']['GroupType']['value']['value'] != 'EPalGroupType::Guild': continue
         raw = group['value']['RawData']['value']
         players = raw.get('players', [])
-        for player in players[:]:
-            uid_obj = player.get('player_uid', '')
-            uid = str(uid_obj.get('value', '') if isinstance(uid_obj, dict) else uid_obj).replace('-', '')
-            player_name = player.get('player_info', {}).get('player_name', 'Unknown')
-            guild_id = group['key']
+        filtered_players = []
+        for player in players:
+            uid_raw = player.get('player_uid', '')
+            uid = str(uid_raw.get('value', '') if isinstance(uid_raw, dict) else uid_raw).replace('-', '')
             last_online = player.get('player_info', {}).get('last_online_real_time') or 0
+            player_name = player.get('player_info', {}).get('player_name', 'Unknown')
             days_inactive = (tick_now - last_online) / 864000000000 if last_online else float('inf')
             if uid in uid_to_player:
-                existing_player = uid_to_player[uid]
-                existing_group = uid_to_group[uid]
-                existing_raw = existing_group['value']['RawData']['value']
-                existing_lo = existing_player.get('player_info', {}).get('last_online_real_time') or 0
-                existing_days_inactive = (tick_now - existing_lo) / 864000000000 if existing_lo else float('inf')
-                existing_name = existing_player.get('player_info', {}).get('player_name', 'Unknown')
-                existing_gid = existing_group['key']
-                if days_inactive > existing_days_inactive:
-                    raw['players'] = [p for p in players if str(p.get('player_uid', '')).replace('-', '') != uid]
+                prev = uid_to_player[uid]
+                prev_group = uid_to_group[uid]
+                prev_lo = prev.get('player_info', {}).get('last_online_real_time') or 0
+                prev_days_inactive = (tick_now - prev_lo) / 864000000000 if prev_lo else float('inf')
+                prev_name = prev.get('player_info', {}).get('player_name', 'Unknown')
+                if days_inactive > prev_days_inactive:
                     deleted_players.append({
                         'deleted_uid': uid,
                         'deleted_name': player_name,
-                        'deleted_gid': guild_id,
+                        'deleted_gid': group['key'],
                         'deleted_last_online': last_online,
                         'kept_uid': uid,
-                        'kept_name': existing_name,
-                        'kept_gid': existing_gid,
-                        'kept_last_online': existing_lo
+                        'kept_name': prev_name,
+                        'kept_gid': prev_group['key'],
+                        'kept_last_online': prev_lo
                     })
+                    continue
                 else:
-                    existing_raw['players'] = [p for p in existing_raw.get('players', []) if str(p.get('player_uid', '')).replace('-', '') != uid]
+                    prev_group['value']['RawData']['value']['players'] = [
+                        p for p in prev_group['value']['RawData']['value'].get('players', [])
+                        if str(p.get('player_uid', '')).replace('-', '') != uid
+                    ]
                     deleted_players.append({
                         'deleted_uid': uid,
-                        'deleted_name': existing_name,
-                        'deleted_gid': existing_gid,
-                        'deleted_last_online': existing_lo,
+                        'deleted_name': prev_name,
+                        'deleted_gid': prev_group['key'],
+                        'deleted_last_online': prev_lo,
                         'kept_uid': uid,
                         'kept_name': player_name,
-                        'kept_gid': guild_id,
+                        'kept_gid': group['key'],
                         'kept_last_online': last_online
                     })
-                    uid_to_player[uid] = player
-                    uid_to_group[uid] = group
-            else:
-                uid_to_player[uid] = player
-                uid_to_group[uid] = group
+            uid_to_player[uid] = player
+            uid_to_group[uid] = group
+            filtered_players.append(player)
+        raw['players'] = filtered_players
     refresh_all()
     for d in deleted_players:
         print(f"KEPT    -> UID: {d['kept_uid']}, Name: {d['kept_name']}, Guild ID: {d['kept_gid']}, Last Online: {format_duration(tick_now - d['kept_last_online'])}")
