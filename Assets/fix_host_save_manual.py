@@ -4,8 +4,8 @@ from tkinter import messagebox, filedialog
 from scan_save import *
 from datetime import datetime
 def backup_whole_directory(source_folder, backup_folder):
-    if not os.path.exists(backup_folder):
-        os.makedirs(backup_folder)
+    if not os.path.exists(backup_folder): os.makedirs(backup_folder)
+    print("Now backing up the whole directory of the Level.sav's location...")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
     shutil.copytree(source_folder, backup_path)
