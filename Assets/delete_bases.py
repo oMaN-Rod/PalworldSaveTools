@@ -224,6 +224,7 @@ def delete_selected_guild():
         f_dps = os.path.join(players_folder, f"{uid}_dps.sav")
         if os.path.exists(f): os.remove(f)
         if os.path.exists(f_dps): os.remove(f_dps)
+        delete_player_pals(wsd, uid)
     for b in wsd.get('BaseCampSaveData', {}).get('value', [])[:]:
         if are_equal_uuids(b['value']['RawData']['value'].get('group_id_belong_to'), gid):
             delete_base_camp(b, gid, loaded_level_json)
@@ -310,15 +311,7 @@ def delete_selected_player():
             elif admin_uid not in keep_uids:
                 raw['admin_player_uid'] = keep_players[0]['player_uid']
     if deleted:
-        char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
-        char_save_map[:] = [
-            entry for entry in char_save_map
-            if not (
-                entry['value']['RawData']['value']['object']['SaveParameter']['struct_type'] == 'PalIndividualCharacterSaveParameter'
-                and entry['value']['RawData']['value']['object']['SaveParameter']['value'].get('IsPlayer', {}).get('value', False)
-                and str(entry['key']['PlayerUId']['value']).replace("-", "") == uid
-            )
-        ]
+        removed_pals = delete_player_pals(wsd, uid)
         valid_uids = {
             str(p.get('player_uid', '')).replace('-', '')
             for g in wsd['GroupSaveDataMap']['value']
@@ -328,9 +321,30 @@ def delete_selected_player():
         clean_character_save_parameter_map(wsd, valid_uids)
         delete_orphaned_bases()
         refresh_all()
-        messagebox.showinfo("Deleted", "Player deleted successfully!")
+        messagebox.showinfo("Deleted", f"Player and {removed_pals} pals deleted successfully!")
     else:
         messagebox.showinfo("Info", "Player not found or already deleted.")
+def delete_player_pals(wsd, targ_uid=None, targ_uids=None):
+    char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
+    new_map = []
+    removed_pals = 0
+    if targ_uid:
+        targ_uids = {targ_uid}
+    elif not targ_uids:
+        targ_uids = set()
+    for entry in char_save_map:
+        try:
+            val = entry['value']['RawData']['value']['object']['SaveParameter']['value']
+            struct_type = entry['value']['RawData']['value']['object']['SaveParameter']['struct_type']
+            owner_uid = str(val.get('OwnerPlayerUId', {}).get('value', '')).replace('-', '')
+            if struct_type in ('PalIndividualCharacterSaveParameter', 'PlayerCharacterSaveParameter') and owner_uid in targ_uids:
+                removed_pals += 1
+                continue
+        except:
+            pass
+        new_map.append(entry)
+    wsd["CharacterSaveParameterMap"]["value"] = new_map
+    return removed_pals
 def delete_inactive_bases():
     folder = current_save_path
     if not folder:
@@ -488,6 +502,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
         try: os.remove(dps_path)
         except FileNotFoundError: pass
     if to_delete_uids:
+        removed_pals = delete_player_pals(wsd, None, to_delete_uids)
         valid_uids = {
             str(p.get('player_uid', '')).replace('-', '')
             for g in group_data_list
@@ -506,7 +521,8 @@ def delete_inactive_players(folder_path, inactive_days=30):
         result_msg = (
             f"Players before deletion: {total_players_before}\n"
             f"Players deleted: {len(deleted_info)}\n"
-            f"Players after deletion: {total_players_after}"
+            f"Players after deletion: {total_players_after}\n"
+            f"Pals deleted: {removed_pals}"
         )
         print(result_msg)
         messagebox.showinfo("Success", result_msg)
@@ -572,8 +588,17 @@ def delete_duplicated_players():
             uid_to_group[uid] = group
             filtered_players.append(player)
         raw['players'] = filtered_players
+    players_folder = os.path.join(folder, 'Players')
+    deleted_uids = {d['deleted_uid'] for d in deleted_players}
+    for uid in deleted_uids:
+        player_path = os.path.join(players_folder, uid + '.sav')
+        dps_path = os.path.join(players_folder, f"{uid}_dps.sav")
+        if os.path.exists(player_path): os.remove(player_path)
+        if os.path.exists(dps_path): os.remove(dps_path)
+        delete_player_pals(wsd, uid)
     delete_orphaned_bases()
     refresh_all()
+    format_duration = lambda ticks: f"{int(ticks / 864000000000)}d:{int((ticks % 864000000000) / 36000000000)}h:{int((ticks % 36000000000) / 600000000)}m ago"
     for d in deleted_players:
         print(f"KEPT    -> UID: {d['kept_uid']}, Name: {d['kept_name']}, Guild ID: {d['kept_gid']}, Last Online: {format_duration(tick_now - d['kept_last_online'])}")
         print(f"DELETED -> UID: {d['deleted_uid']}, Name: {d['deleted_name']}, Guild ID: {d['deleted_gid']}, Last Online: {format_duration(tick_now - d['deleted_last_online'])}\n")
