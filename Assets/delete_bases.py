@@ -329,19 +329,25 @@ def delete_player_pals(wsd, targ_uid=None, targ_uids=None):
     new_map = []
     removed_pals = 0
     if targ_uid:
-        targ_uids = {targ_uid}
-    elif not targ_uids:
+        targ_uids = {targ_uid.replace('-', '')}
+    elif targ_uids:
+        targ_uids = {uid.replace('-', '') for uid in targ_uids}
+    else:
         targ_uids = set()
     for entry in char_save_map:
         try:
             val = entry['value']['RawData']['value']['object']['SaveParameter']['value']
             struct_type = entry['value']['RawData']['value']['object']['SaveParameter']['struct_type']
-            owner_uid = str(val.get('OwnerPlayerUId', {}).get('value', '')).replace('-', '')
+            if 'OwnerPlayerUId' not in val or not val['OwnerPlayerUId'].get('value'):
+                new_map.append(entry)
+                continue
+            owner_uid = str(val['OwnerPlayerUId']['value']).replace('-', '')
             if struct_type in ('PalIndividualCharacterSaveParameter', 'PlayerCharacterSaveParameter') and owner_uid in targ_uids:
                 removed_pals += 1
                 continue
         except:
-            pass
+            new_map.append(entry)
+            continue
         new_map.append(entry)
     wsd["CharacterSaveParameterMap"]["value"] = new_map
     return removed_pals
