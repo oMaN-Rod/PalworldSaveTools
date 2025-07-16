@@ -56,15 +56,21 @@ def load_save():
     if not p.endswith("Level.sav"):
         messagebox.showerror("Error!", "This is NOT Level.sav. Please select Level.sav file.")
         return
-    d = os.path.dirname(p); playerdir=os.path.join(d,"Players")
+    d = os.path.dirname(p)
+    playerdir = os.path.join(d, "Players")
     if not os.path.isdir(playerdir):
-        messagebox.showerror("Error","Players folder missing"); return    
+        messagebox.showerror("Error", "Players folder missing")
+        return
     current_save_path = d
     backup_save_path = current_save_path
     loaded_level_json = sav_to_json(p)
     build_player_levels()
     refresh_all()
-    print(f"Done loading the save!")
+    refresh_stats("Before Deletion")
+    print("Done loading the save!")
+    stats = get_current_stats()
+    for k,v in stats.items():
+        print(f"Total {k}: {v}")
 def save_changes():
     folder = current_save_path
     if not folder:
@@ -100,10 +106,11 @@ def refresh_all():
     base_tree.delete(*base_tree.get_children())
     player_tree.delete(*player_tree.get_children())
     for g in loaded_level_json['properties']['worldSaveData']['value']['GroupSaveDataMap']['value']:
-        if g['value']['GroupType']['value']['value']=='EPalGroupType::Guild':
-            name=g['value']['RawData']['value'].get('guild_name',"Unknown"); gid=as_uuid(g['key'])
-            guild_tree.insert("","end",values=(name,gid))
-    for uid,name,gid,seen,level in get_players():
+        if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild':
+            name = g['value']['RawData']['value'].get('guild_name', "Unknown")
+            gid = as_uuid(g['key'])
+            guild_tree.insert("", "end", values=(name, gid))
+    for uid, name, gid, seen, level in get_players():
         player_tree.insert("", "end", iid=uid, values=(uid, name, gid, seen, level))
 def on_guild_search(evt=None):
     q = guild_search_var.get().lower()
@@ -228,8 +235,8 @@ def delete_selected_guild():
         except FileNotFoundError: pass
         try: os.remove(f_dps)
         except FileNotFoundError: pass
-    for uid in deleted_uids:
-        delete_player_pals(wsd, uid)
+    if deleted_uids:
+        delete_player_pals(wsd, deleted_uids)
     char_map = wsd.get('CharacterSaveParameterMap', {}).get('value', [])
     char_map[:] = [entry for entry in char_map
                    if str(entry.get('key', {}).get('PlayerUId', {}).get('value', '')).replace('-', '') not in deleted_uids
@@ -241,6 +248,7 @@ def delete_selected_guild():
             delete_base_camp(b, gid, loaded_level_json)
     delete_orphaned_bases()
     refresh_all()
+    refresh_stats("After Deletion")
     messagebox.showinfo("Deleted", f"Guild, {len(deleted_uids)} players, and all their pals successfully deleted")
 def delete_selected_base():
     folder = current_save_path
@@ -256,6 +264,7 @@ def delete_selected_base():
             break
     delete_orphaned_bases()
     refresh_all()
+    refresh_stats("After Deletion")
     messagebox.showinfo("Deleted", "Base deleted")
 def get_owner_uid(entry):
     try:
@@ -310,28 +319,27 @@ def delete_selected_player():
                                .get('object', {}).get('SaveParameter', {}).get('value', {})
                                .get('OwnerPlayerUId', {}).get('value', '')).replace('-', '') != uid]
         refresh_all()
+        refresh_stats("After Deletion")
         messagebox.showinfo("Deleted", "Player and their pals deleted successfully!")
     else:
         messagebox.showinfo("Info", "Player not found or already deleted.")
-def delete_player_pals(wsd, targ_uid):
+def delete_player_pals(wsd, to_delete_uids):
     char_save_map = wsd.get("CharacterSaveParameterMap", {}).get("value", [])
-    new_map = []
     removed_pals = 0
-    uid = targ_uid.replace('-', '') if targ_uid else None
+    uids_set = {uid.replace('-', '') for uid in to_delete_uids if uid}
+    new_map = []
     for entry in char_save_map:
         try:
             val = entry['value']['RawData']['value']['object']['SaveParameter']['value']
             struct_type = entry['value']['RawData']['value']['object']['SaveParameter']['struct_type']
-            if 'OwnerPlayerUId' not in val or not val['OwnerPlayerUId'].get('value'):
-                new_map.append(entry)
-                continue
-            owner_uid = str(val['OwnerPlayerUId']['value']).replace('-', '')
-            if struct_type in ('PalIndividualCharacterSaveParameter', 'PlayerCharacterSaveParameter') and owner_uid == uid:
+            owner_uid = val.get('OwnerPlayerUId', {}).get('value')
+            if owner_uid:
+                owner_uid = str(owner_uid).replace('-', '')
+            if struct_type in ('PalIndividualCharacterSaveParameter', 'PlayerCharacterSaveParameter') and owner_uid in uids_set:
                 removed_pals += 1
                 continue
         except:
-            new_map.append(entry)
-            continue
+            pass
         new_map.append(entry)
     wsd["CharacterSaveParameterMap"]["value"] = new_map
     return removed_pals
@@ -360,6 +368,7 @@ def delete_inactive_bases():
             if delete_base_camp(b, gid, loaded_level_json): cnt += 1
     delete_orphaned_bases()
     refresh_all()
+    refresh_stats("After Deletion")
     messagebox.showinfo("Done", f"Deleted {cnt} bases")
 def delete_orphaned_bases():
     folder = current_save_path
@@ -378,6 +387,7 @@ def delete_orphaned_bases():
         if not gid or gid not in valid_guild_ids:
             if delete_base_camp(b, gid, loaded_level_json): cnt += 1
     refresh_all()
+    refresh_stats("After Deletion")
     if cnt > 0: print(f"Deleted {cnt} orphaned base(s)")
 def is_valid_level(level):
     try:
@@ -425,6 +435,7 @@ def delete_empty_guilds():
         group_data.remove(g)
     delete_orphaned_bases()
     refresh_all()
+    refresh_stats("After Deletion")
     messagebox.showinfo("Done", f"Deleted {len(to_delete)} guild(s)")
 def on_player_select(evt):
     sel = player_tree.selection()
@@ -493,10 +504,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
         except FileNotFoundError: pass
     removed_pals = 0
     if to_delete_uids:
-        for uid in to_delete_uids:
-            deleted_count = delete_player_pals(wsd, uid)
-            print(f"Deleting pals for UID {uid}: removed {deleted_count} pals")
-            removed_pals += deleted_count
+        removed_pals = delete_player_pals(wsd, to_delete_uids)
         char_map = wsd.get('CharacterSaveParameterMap', {}).get('value', [])
         char_map[:] = [entry for entry in char_map
                        if str(entry.get('key', {}).get('PlayerUId', {}).get('value', '')).replace('-', '') not in to_delete_uids
@@ -505,6 +513,7 @@ def delete_inactive_players(folder_path, inactive_days=30):
                                .get('OwnerPlayerUId', {}).get('value', '')).replace('-', '') not in to_delete_uids]
         delete_orphaned_bases()
         refresh_all()
+        refresh_stats("After Deletion")
         total_players_after = sum(
             len(g['value']['RawData']['value'].get('players', []))
             for g in group_data_list if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild'
@@ -586,7 +595,8 @@ def delete_duplicated_players():
         dps_path = os.path.join(players_folder, f"{uid}_dps.sav")
         if os.path.exists(player_path): os.remove(player_path)
         if os.path.exists(dps_path): os.remove(dps_path)
-        delete_player_pals(wsd, uid)
+    if deleted_uids:
+        delete_player_pals(wsd, deleted_uids)
     valid_uids = {
         str(p.get('player_uid', '')).replace('-', '')
         for g in wsd['GroupSaveDataMap']['value']
@@ -596,6 +606,7 @@ def delete_duplicated_players():
     clean_character_save_parameter_map(wsd, valid_uids)
     delete_orphaned_bases()
     refresh_all()
+    refresh_stats("After Deletion")
     format_duration = lambda ticks: f"{int(ticks / 864000000000)}d:{int((ticks % 864000000000) / 36000000000)}h:{int((ticks % 36000000000) / 600000000)}m ago"
     for d in deleted_players:
         print(f"KEPT    -> UID: {d['kept_uid']}, Name: {d['kept_name']}, Guild ID: {d['kept_gid']}, Last Online: {format_duration(tick_now - d['kept_last_online'])}")
@@ -621,9 +632,50 @@ def on_guild_members_search(event=None):
             break
 def on_guild_member_select(event=None):
     pass    
+def get_current_stats():
+    wsd = loaded_level_json['properties']['worldSaveData']['value']
+    group_data = wsd['GroupSaveDataMap']['value']
+    base_data = wsd['BaseCampSaveData']['value']
+    char_data = wsd.get('CharacterSaveParameterMap', {}).get('value', [])
+    total_players = sum(len(g['value']['RawData']['value'].get('players', [])) for g in group_data if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild')
+    total_guilds = sum(1 for g in group_data if g['value']['GroupType']['value']['value'] == 'EPalGroupType::Guild')
+    total_bases = len(base_data)
+    total_pals_raw = sum(1 for c in char_data if c['value']['RawData']['value']['object']['SaveParameter']['struct_type'] == 'PalIndividualCharacterSaveParameter')
+    total_pals = total_pals_raw - total_players
+    return dict(Players=total_players, Guilds=total_guilds, Bases=total_bases, Pals=total_pals)
+def create_stats_panel(parent):
+    stat_frame = ttk.Frame(parent, style="TFrame")
+    stat_frame.place(x=1190, y=40, width=200, height=340)
+    ttk.Label(stat_frame, text="Stats", font=("Arial", 12, "bold"), style="TLabel").pack(anchor="w", padx=5, pady=(0,5))
+    sections = ["Before Deletion", "After Deletion", "Deletion Result"]
+    stat_labels = {}
+    for sec in sections:
+        ttk.Label(stat_frame, text=f"{sec}:", font=("Arial", 10, "bold"), style="TLabel").pack(anchor="w", padx=5, pady=(5,0))
+        key_sec = sec.lower().replace(" ", "")
+        for field in ["Guilds", "Bases", "Players", "Pals"]:
+            key = f"{key_sec}_{field.lower()}"
+            lbl = ttk.Label(stat_frame, text=f"{field}: 0", style="TLabel", font=("Arial", 10))
+            lbl.pack(anchor="w", padx=15)
+            stat_labels[key] = lbl
+    return stat_labels
+def update_stats_section(stat_labels, section, data):
+    section_key = section.lower().replace(" ", "")
+    for key, val in data.items():
+        label_key = f"{section_key}_{key.lower()}"
+        if label_key in stat_labels:
+            stat_labels[label_key].config(text=f"{key.capitalize()}: {val}")
+def refresh_stats(section):
+    stats = get_current_stats()
+    if section == "Before Deletion":
+        refresh_stats.stats_before = stats
+    update_stats_section(stat_labels, section, stats)
+    if section == "After Deletion" and hasattr(refresh_stats, "stats_before"):
+        before = refresh_stats.stats_before
+        result = {k: before[k] - stats.get(k, 0) for k in before}
+        update_stats_section(stat_labels, "Deletion Result", result)
 window = tk.Tk()
 window.title("All in One Deletion Tool")
-window.geometry("1200x700")
+window.geometry("1400x700")
 window.config(bg="#2f2f2f")
 font = ("Arial", 10)
 s = ttk.Style(window)
@@ -712,4 +764,5 @@ btn_delete_inactive_players = ttk.Button(window, text="Delete Inactive Players",
 btn_delete_player.place(x=base_x + panel_width * 0.18 - (btn_delete_player.winfo_reqwidth() // 2), y=y_pos)
 btn_fix_duplicate_players.place(x=base_x + panel_width * 0.50 - (btn_fix_duplicate_players.winfo_reqwidth() // 2), y=y_pos)
 btn_delete_inactive_players.place(x=base_x + panel_width * 0.82 - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=y_pos)
+stat_labels = create_stats_panel(window)
 window.mainloop()
