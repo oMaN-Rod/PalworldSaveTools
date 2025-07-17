@@ -93,27 +93,9 @@ Afterwards, reset and update PST using **Option #18** from the menu.
 
 Done! Your map is back in your **new server/world**!
 
-## Where to find the save files:
 
-The save files are usually located at:
-```
-C:\Users\YOURUSERNAME\AppData\Local\Pal\Saved\SaveGames\YOURSTEAMID\RANDOMID
-``` 
-for co-op saves.
-For server saves, go to the dedicated server's file location through steam.
-You need at least 4 files to complete the transfer:
-```
-- The source player character save in Players folder
-- The source world's Level.sav
-- The target player character save in Players folder
-- The target world's Level.sav
-```
 
-## How to use Transfer Character:
-
-⚠️WARNING⚠️: Make sure to disable the private locks on the "source" chests before transferring saves!!!
-
-### 🔁 To Move from Host/Co-op to Server or Vice Versa
+## 🔁 To Move from Host/Co-op to Server or Vice Versa
 
 For **host/co-op**, the save folder is typically located at:
 
