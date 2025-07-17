@@ -110,27 +110,27 @@ For **dedicated servers**, the save folder is typically located at:
 steamapps\common\Palworld\Pal\Saved\SaveGames\0\RANDOMSERVERID\
 ```
 
-
 ---
 
 ### 🧪 Transfer Process
 
-1. Copy either your **host/co-op** or **dedicated server** save files.
-2. Paste them into the opposite type (host ↔ server).
-3. Start the game/server.
-4. When prompted to create a new character, go ahead and do it.
-5. Exit once the game auto-saves (~2 minutes).
-6. Copy the updated save files (Level.sav + Players folder).
-7. Paste them into a **temporary folder**.
-8. Open **PST (Palworld Save Tool)** and select the **Fix Host Save** option.
-9. Load the `Level.sav` from the temporary folder (the one just created).
-10. Select:
-    - The **old character** (source)
-    - The **new character** (target)
+1. Copy **`Level.sav` and the `Players` folder** from either your **host/co-op** or **dedicated server** save folder.
+2. Paste **`Level.sav` and the `Players` folder** into the other save folder type (host ↔ server).
+3. Start the game or server.
+4. When prompted to create a **new character**, go ahead and do it.
+5. Wait ~2 minutes for the auto-save, then close the game/server.
+6. Copy the newly updated **`Level.sav` and `Players` folder** from that world.
+7. Paste them into a **temporary folder** somewhere on your PC.
+8. Open **PST(PalworldSaveTools)** and choose the **Fix Host Save** option.
+9. Select the **`Level.sav`** from your temporary folder.
+10. Choose:
+    - The **old character** (from original save)
+    - The **new character** (you just created)
 11. Click **Migrate**.
-12. After migration, copy the updated files from the temporary folder.
-13. Paste them into your **actual world save** (host or server).
+12. After migration is complete, copy the updated **`Level.sav` and `Players` folder** from the temporary folder.
+13. Paste them back into your actual save folder (host or server).
 14. Start the game/server and enjoy your character with all progress intact! 🎉
+
 
 # Known bugs/issues:
 
