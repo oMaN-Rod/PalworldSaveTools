@@ -151,4 +151,9 @@ def manual_fix():
 tk.Button(frame, text="Apply Manual GUID Swap", command=manual_fix, bg="#555555", fg="white", font=font_style, activebackground="#666666").grid(row=3, column=0, columnspan=2, pady=20)
 frame.grid_columnconfigure(0, weight=0)
 frame.grid_columnconfigure(1, weight=1)
+def on_exit():
+    if window.winfo_exists():
+        window.destroy()
+    sys.exit()
+window.protocol("WM_DELETE_WINDOW", on_exit)
 window.mainloop()

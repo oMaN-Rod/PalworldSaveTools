@@ -1,40 +1,109 @@
-from import_libs import *
-from convert import convert_json_to_sav, convert_sav_to_json
-def search_file(pattern, directory): return glob.glob(f"{directory}/PalworldSave/**/{pattern}", recursive=True)
-def edit_json(file_path, pages, slots):
-    with open(file_path, 'r') as file: data = json.load(file)
-    value_to_replace, new_value, count_found, count_replaced = 960, pages * slots, 0, 0
-    def replace_values(obj):
-        nonlocal count_found, count_replaced
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                if key == "value" and value == value_to_replace: count_found += 1; obj[key] = new_value; count_replaced += 1
-                else: replace_values(value)
-        elif isinstance(obj, list): [replace_values(item) for item in obj]
-    replace_values(data)
-    with open(file_path, 'w') as file: json.dump(data, file, indent=4)
-    return count_found, count_replaced
-def get_user_input():
-    while True:
+from scan_save import *
+def sav_to_json(filepath):
+    with open(filepath, "rb") as f:
+        data = f.read()
+        raw_gvas, save_type = decompress_sav_to_gvas(data)
+    gvas_file = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, allow_nan=True)
+    return gvas_file.dump()
+def json_to_sav(json_data, output_filepath):
+    gvas_file = GvasFile.load(json_data)
+    save_type = 0x32 if "Pal.PalworldSaveGame" in gvas_file.header.save_game_class_name or "Pal.PalLocalWorldSaveGame" in gvas_file.header.save_game_class_name else 0x31
+    sav_file = compress_gvas_to_sav(gvas_file.write(SKP_PALWORLD_CUSTOM_PROPERTIES), save_type)
+    with open(output_filepath, "wb") as f:
+        f.write(sav_file)
+class SlotNumUpdaterApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Slot Injector")
+        self.geometry("600x200")
+        self.config(bg="#2f2f2f")
         try:
-            pages, slots = int(input("Enter the number of pages: ")), int(input("Enter the number of slots: "))
-            total = pages * slots; print(f"The total is {total}.")
-            if input("Is this correct? (y/n): ").strip().lower() == 'y': return pages, slots
-            else: print("Let's try again.")
-        except ValueError: print("Invalid input. Please enter numeric values.")
-def main():
-    level_files = search_file("Level.sav", ".")
-    if not level_files: print("No .sav file found."); sys.exit(1)
-    for level_file in level_files:
-        level_json_output_path = level_file.replace(".sav", ".json")
-        convert_sav_to_json(level_file, level_json_output_path)
-        print(f"Converted {level_file} to {level_json_output_path}")
-        pages, slots = get_user_input()
-        print(f"Now loading json and making edits... please be patient.")
-        found, replaced = edit_json(level_json_output_path, pages, slots)
-        print(f"Found 'value': 960, {found} times."); print(f"Replaced with {pages * slots}, {replaced} times.")
-        level_sav_output_path = level_json_output_path.replace(".json", ".sav")
-        convert_json_to_sav(level_json_output_path, level_sav_output_path)
-        print(f"Converted {level_json_output_path} back to {level_sav_output_path}")
-    print("Process completed.")
-if __name__ == "__main__": main()
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico")
+            self.iconbitmap(icon_path)
+        except Exception as e:
+            print(f"Could not set icon: {e}")
+        font_style = ("Arial", 10)
+        style = ttk.Style(self)
+        style.theme_use('clam')
+        for opt in [
+            ("TFrame", {"background": "#2f2f2f"}),
+            ("TLabel", {"background": "#2f2f2f", "foreground": "white", "font": font_style}),
+            ("TEntry", {"fieldbackground": "#444444", "foreground": "white", "font": font_style}),
+            ("Dark.TButton", {"background": "#555555", "foreground": "white", "font": font_style, "padding": 6}),
+        ]:
+            style.configure(opt[0], **opt[1])
+        style.map("Dark.TButton",
+            background=[("active", "#666666"), ("!disabled", "#555555")],
+            foreground=[("disabled", "#888888"), ("!disabled", "white")]
+        )
+        frame = ttk.Frame(self, style="TFrame")
+        frame.pack(padx=20, pady=10, fill='x', expand=True)
+        row = 0
+        browse_btn = ttk.Button(frame, text="Browse", command=self.browse_file, style="Dark.TButton")
+        browse_btn.grid(row=row, column=0, sticky='w')
+        ttk.Label(frame, text="Select Level.sav File:", style="TLabel").grid(row=row, column=1, sticky='w', padx=(10,5))
+        self.file_entry = ttk.Entry(frame, style="TEntry")
+        self.file_entry.grid(row=row, column=2, sticky='ew')
+        row += 1
+        ttk.Label(frame, text="Total Pages:", style="TLabel").grid(row=row, column=0, sticky='w', pady=5)
+        self.pages_entry = ttk.Entry(frame, style="TEntry", width=10)
+        self.pages_entry.grid(row=row, column=1, sticky='w', pady=5)
+        row += 1
+        ttk.Label(frame, text="Total Slots:", style="TLabel").grid(row=row, column=0, sticky='w', pady=5)
+        self.slots_entry = ttk.Entry(frame, style="TEntry", width=10)
+        self.slots_entry.grid(row=row, column=1, sticky='w', pady=5)
+        row += 1
+        ttk.Label(frame, text="Total SlotNum:", style="TLabel").grid(row=row, column=0, sticky='w', pady=5)
+        self.current_val_entry = ttk.Entry(frame, style="TEntry", width=10)
+        self.current_val_entry.grid(row=row, column=1, sticky='w', pady=5)
+        self.current_val_entry.insert(0, "960")
+        row += 1
+        apply_btn = ttk.Button(frame, text="Apply Slot Injection", command=self.apply_slotnum_update, style="Dark.TButton")
+        apply_btn.grid(row=row, column=0, columnspan=3, pady=10)
+        frame.columnconfigure(2, weight=1)
+    def browse_file(self):
+        file = filedialog.askopenfilename(title="Select Level.sav file", filetypes=[("SAV files", "Level.sav")])
+        if file:
+            self.file_entry.delete(0, tk.END)
+            self.file_entry.insert(0, file)
+    def apply_slotnum_update(self):
+        filepath = self.file_entry.get()
+        if not filepath or not os.path.isfile(filepath) or not filepath.endswith("Level.sav"):
+            messagebox.showerror("Error", "Select a valid Level.sav file")
+            return
+        try:
+            pages = int(self.pages_entry.get())
+            slots = int(self.slots_entry.get())
+            current_val = int(self.current_val_entry.get())
+            if pages < 1 or slots < 1:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Please enter valid positive integers for pages, slots, and current value")
+            return
+        new_value = pages * slots
+        confirm = messagebox.askyesno("Confirm Update", f"Are you sure you want to update SlotNum values from {current_val} to {new_value} (pages × slots)?")
+        if not confirm:
+            return
+        level_json = sav_to_json(filepath)
+        container = level_json['properties']['worldSaveData']['value'].get('CharacterContainerSaveData', {})
+        if not container:
+            messagebox.showerror("Error", "CharacterContainerSaveData not found.")
+            return
+        val = container.get('value', [])
+        if not isinstance(val, list):
+            messagebox.showerror("Error", "CharacterContainerSaveData.value is not a list.")
+            return
+        updated_count = 0
+        for entry in val:
+            slotnum_entry = entry.get('value', {}).get('SlotNum', {})
+            if slotnum_entry.get('value') == current_val:
+                slotnum_entry['value'] = new_value
+                updated_count += 1
+        if updated_count == 0:
+            messagebox.showinfo("Info", f"No SlotNum entries with value {current_val} found.")
+            return
+        json_to_sav(level_json, filepath)
+        messagebox.showinfo("Success", f"Updated {updated_count} SlotNum entries from {current_val} to {new_value} in Level.sav!")
+if __name__ == "__main__":
+    app = SlotNumUpdaterApp()
+    app.mainloop()

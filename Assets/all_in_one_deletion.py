@@ -110,6 +110,8 @@ def refresh_all():
             name = g['value']['RawData']['value'].get('guild_name', "Unknown")
             gid = as_uuid(g['key'])
             guild_tree.insert("", "end", values=(name, gid))
+    for b in loaded_level_json['properties']['worldSaveData']['value']['BaseCampSaveData']['value']:
+        base_tree.insert("", "end", values=(str(b['key']),))
     for uid, name, gid, seen, level in get_players():
         player_tree.insert("", "end", iid=uid, values=(uid, name, gid, seen, level))
 def on_guild_search(evt=None):
@@ -703,7 +705,7 @@ def create_search_panel(parent, label_text, search_var, search_callback, tree_co
     lbl.pack(side='left')
     entry = ttk.Entry(topbar, textvariable=search_var)
     entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
-    search_var.trace_add('write', lambda *a: search_callback(None))
+    entry.bind("<KeyRelease>", lambda e: search_callback(None))
     tree = ttk.Treeview(panel, columns=tree_columns, show='headings', height=tree_height)
     tree.pack(fill='both', expand=True, padx=5, pady=(0, 5))
     for col, head, width_col in zip(tree_columns, tree_headings, tree_col_widths):
@@ -765,4 +767,9 @@ btn_delete_player.place(x=base_x + panel_width * 0.18 - (btn_delete_player.winfo
 btn_fix_duplicate_players.place(x=base_x + panel_width * 0.50 - (btn_fix_duplicate_players.winfo_reqwidth() // 2), y=y_pos)
 btn_delete_inactive_players.place(x=base_x + panel_width * 0.82 - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=y_pos)
 stat_labels = create_stats_panel(window)
+def on_exit():
+    if window.winfo_exists():
+        window.destroy()
+    sys.exit()
+window.protocol("WM_DELETE_WINDOW", on_exit)
 window.mainloop()

@@ -202,27 +202,39 @@ try:
 except Exception as e:
     print(f"Could not set icon: {e}")
 font_style = ("Arial", 10)
-style = ttk.Style()
+style = ttk.Style(window)
 style.theme_use('clam')
-style.configure("Treeview.Heading", font=("Arial", 12, "bold"), background="#444444", foreground="white")
-style.configure("Treeview", background="#333333", foreground="white", rowheight=25, fieldbackground="#333333", borderwidth=0)
-file_frame = tk.Frame(window, bg="#2f2f2f")
+for opt in [
+    ("Treeview.Heading", {"font": ("Arial", 12, "bold"), "background": "#444444", "foreground": "white"}),
+    ("Treeview", {"background": "#333333", "foreground": "white", "rowheight": 25, "fieldbackground": "#333333", "borderwidth": 0}),
+    ("TFrame", {"background": "#2f2f2f"}),
+    ("TLabel", {"background": "#2f2f2f", "foreground": "white"}),
+    ("TEntry", {"fieldbackground": "#444444", "foreground": "white"}),
+    ("Dark.TButton", {"background": "#555555", "foreground": "white", "font": font_style, "padding": 6}),
+]:
+    style.configure(opt[0], **opt[1])
+style.map("Dark.TButton",
+    background=[("active", "#666666"), ("!disabled", "#555555")],
+    foreground=[("disabled", "#888888"), ("!disabled", "white")]
+)
+file_frame = ttk.Frame(window, style="TFrame")
 file_frame.pack(fill='x', padx=10, pady=10)
-tk.Label(file_frame, text='Select Level.sav file:', bg="#2f2f2f", fg="white", font=font_style).pack(side='left')
-level_sav_entry = tk.Entry(file_frame, width=70, font=font_style, bg="#444444", fg="white", insertbackground="white")
+ttk.Label(file_frame, text='Select Level.sav file:', font=font_style, style="TLabel").pack(side='left')
+level_sav_entry = ttk.Entry(file_frame, width=70, font=font_style, style="TEntry")
 level_sav_entry.pack(side='left', padx=5)
-browse_button = tk.Button(file_frame, text="Browse", command=choose_level_file, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+browse_button = ttk.Button(file_frame, text="Browse", command=choose_level_file, style="Dark.TButton")
 browse_button.pack(side='left')
-migrate_button = tk.Button(file_frame, text="Migrate", command=fix_save_wrapper, bg="#555555", fg="white", font=font_style, activebackground="#666666")
+migrate_button = ttk.Button(file_frame, text="Migrate", command=fix_save_wrapper, style="Dark.TButton")
 migrate_button.pack(side='right')
-old_frame = tk.Frame(window, bg="#2f2f2f")
+old_frame = ttk.Frame(window, style="TFrame")
 old_frame.pack(side='left', fill='both', expand=True, padx=(10,5), pady=10)
-search_frame_old = tk.Frame(old_frame, bg="#2f2f2f")
+search_frame_old = ttk.Frame(old_frame, style="TFrame")
 search_frame_old.pack(fill='x', pady=5)
 old_search_var = tk.StringVar()
-old_search_entry = tk.Entry(search_frame_old, textvariable=old_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
-tk.Label(search_frame_old, text="Search Source Player:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+old_search_entry = ttk.Entry(search_frame_old, textvariable=old_search_var, font=font_style, style="TEntry")
+ttk.Label(search_frame_old, text="Search Source Player:", font=font_style, style="TLabel").pack(side='left', padx=(0,5))
 old_search_entry.pack(side='left', fill='x', expand=True)
+old_search_entry.bind('<KeyRelease>', lambda e: filter_treeview(old_tree, old_search_entry.get()))
 old_tree = ttk.Treeview(old_frame, columns=("GUID", "Name", "GuildID"), show='headings', selectmode='browse', style="Treeview")
 old_tree.pack(fill='both', expand=True)
 old_tree.heading("GUID", text="GUID", command=lambda: sort_treeview_column(old_tree, "GUID", False))
@@ -234,14 +246,15 @@ old_tree.column("GuildID", width=150, anchor='center')
 old_tree.tag_configure("even", background="#333333")
 old_tree.tag_configure("odd", background="#444444")
 old_tree.tag_configure("selected", background="#555555")
-new_frame = tk.Frame(window, bg="#2f2f2f")
+new_frame = ttk.Frame(window, style="TFrame")
 new_frame.pack(side='left', fill='both', expand=True, padx=(5,10), pady=10)
-search_frame_new = tk.Frame(new_frame, bg="#2f2f2f")
+search_frame_new = ttk.Frame(new_frame, style="TFrame")
 search_frame_new.pack(fill='x', pady=5)
 new_search_var = tk.StringVar()
-new_search_entry = tk.Entry(search_frame_new, textvariable=new_search_var, font=font_style, bg="#444444", fg="white", insertbackground="white")
-tk.Label(search_frame_new, text="Search Target Player:", bg="#2f2f2f", fg="white", font=font_style).pack(side='left', padx=(0,5))
+new_search_entry = ttk.Entry(search_frame_new, textvariable=new_search_var, font=font_style, style="TEntry")
+ttk.Label(search_frame_new, text="Search Target Player:", font=font_style, style="TLabel").pack(side='left', padx=(0,5))
 new_search_entry.pack(side='left', fill='x', expand=True)
+new_search_entry.bind('<KeyRelease>', lambda e: filter_treeview(new_tree, new_search_entry.get()))
 new_tree = ttk.Treeview(new_frame, columns=("GUID", "Name", "GuildID"), show='headings', selectmode='browse', style="Treeview")
 new_tree.pack(fill='both', expand=True)
 new_tree.heading("GUID", text="GUID", command=lambda: sort_treeview_column(new_tree, "GUID", False))
@@ -257,9 +270,9 @@ old_tree.original_rows = []
 new_tree.original_rows = []
 old_search_var.trace_add('write', lambda *args: filter_treeview(old_tree, old_search_var.get()))
 new_search_var.trace_add('write', lambda *args: filter_treeview(new_tree, new_search_var.get()))
-source_result_label = tk.Label(old_frame, text="Source Player: N/A", bg="#2f2f2f", fg="white", font=font_style)
+source_result_label = ttk.Label(old_frame, text="Source Player: N/A", font=font_style, style="TLabel")
 source_result_label.pack(fill='x', pady=(5,0))
-target_result_label = tk.Label(new_frame, text="Target Player: N/A", bg="#2f2f2f", fg="white", font=font_style)
+target_result_label = ttk.Label(new_frame, text="Target Player: N/A", font=font_style, style="TLabel")
 target_result_label.pack(fill='x', pady=(5,0))
 def update_source_selection(event):
     selected = old_tree.selection()
@@ -277,4 +290,9 @@ def update_target_selection(event):
         target_result_label.config(text="Target Player: N/A")
 old_tree.bind('<<TreeviewSelect>>', update_source_selection)
 new_tree.bind('<<TreeviewSelect>>', update_target_selection)
+def on_exit():
+    if window.winfo_exists():
+        window.destroy()
+    sys.exit()
+window.protocol("WM_DELETE_WINDOW", on_exit)
 window.mainloop()

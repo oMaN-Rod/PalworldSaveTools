@@ -2,31 +2,33 @@ from import_libs import *
 def download_from_github(repo_owner, repo_name, version, download_path):
     file_url = get_release_assets(repo_owner, repo_name, version)
     if file_url:
-        response = requests.get(file_url, stream=True)
-        if response.status_code == 200:
-            file_name = file_url.split("/")[-1]
-            file_path = os.path.join(download_path, file_name)
-            with open(file_path, "wb") as f:
-                for chunk in response.iter_content(1024): f.write(chunk)
+        try:
+            with urllib.request.urlopen(file_url) as response:
+                file_name = file_url.split("/")[-1]
+                file_path = os.path.join(download_path, file_name)
+                with open(file_path, "wb") as f:
+                    while True:
+                        chunk = response.read(1024)
+                        if not chunk: break
+                        f.write(chunk)
             print(f"File '{file_name}' downloaded successfully to '{download_path}'")
             return file_path
-        else: print(f"Error downloading file: {response.status_code}")
+        except Exception as e:
+            print(f"Error downloading file: {e}")
     else: print("Error: No valid asset found.")
     return None
 def get_release_assets(repo_owner, repo_name, version):
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{version}"
-    response = requests.get(api_url)
-    if response.status_code == 200:
-        release_data = response.json()
-        assets = release_data['assets']
-        for asset in assets:
-            print(f"Found asset: {asset['name']}")
-            name = asset['name'].lower()
-            if 'windows-standalone' in name and name.endswith('.zip'):
-                return asset['browser_download_url']
-        print("No matching assets found.")
-    else:
-        print(f"Error fetching release info: {response.status_code}")
+    try:
+        with urllib.request.urlopen(api_url) as response:
+            release_data = json.load(response)
+            for asset in release_data.get('assets', []):
+                print(f"Found asset: {asset['name']}")
+                name = asset['name'].lower()
+                if 'windows-standalone' in name and name.endswith('.zip'):
+                    return asset['browser_download_url']
+    except Exception as e:
+        print(f"Error fetching release info: {e}")
     return None
 def extract_zip(directory, partial_name, extract_to):
     for root, _, files in os.walk(directory):
@@ -37,13 +39,12 @@ def extract_zip(directory, partial_name, extract_to):
                 print(f"Extracted {file} to {extract_to}")
 def get_latest_version(repo_owner, repo_name):
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-    response = requests.get(api_url)
-    if response.status_code == 200:
-        latest_release = response.json()
-        version = latest_release['tag_name']
-        return version
-    else:
-        print(f"Error fetching release info: {response.status_code}")
+    try:
+        with urllib.request.urlopen(api_url) as response:
+            latest_release = json.load(response)
+            return latest_release['tag_name']
+    except Exception as e:
+        print(f"Error fetching release info: {e}")
         return None
 def find_exe(folder):
     for root, _, files in os.walk(folder):
