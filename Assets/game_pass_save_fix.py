@@ -62,13 +62,17 @@ def run_save_extractor():
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     if getattr(sys, 'frozen', False):
         base_path = getattr(sys, '_MEIPASS', os.path.abspath('.'))
-        if base_path.endswith("Assets"):
+        base_path = os.path.normpath(base_path)
+        if os.path.basename(base_path) == "Assets":
             script_path = os.path.join(base_path, "xgp_save_extract.py")
         else:
             script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
-        script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
+        if os.path.basename(base_path) == "Assets":
+            script_path = os.path.join(base_path, "xgp_save_extract.py")
+        else:
+            script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
     print(f"Running script at: {script_path}")
     command = [python_exe, script_path]
     try:
