@@ -49,15 +49,6 @@ def convert_save_files(progressbar):
     update_combobox(saveList)
     progressbar.destroy()
     print("Choose a save to convert:")
-def update_combobox(saveList):
-    global saves
-    saves = saveList
-    if saves:
-        combobox = customtkinter.CTkComboBox(master=window, values=saves, width=320, font=("Arial", 14))
-        combobox.place(relx=0.5, rely=0.5, anchor="center")
-        combobox.set("Choose a save to convert:")
-        button = customtkinter.CTkButton(window, width=200, text="Convert Save", command=lambda: convert_JSON_sav(combobox.get()))
-        button.place(relx=0.5, rely=0.8, anchor="center")
 def run_save_extractor():
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
     if getattr(sys, 'frozen', False):
@@ -152,15 +143,31 @@ def transfer_steam_to_gamepass(source_folder):
         messagebox.showerror("Error", f"Conversion failed: {e}")
 window = customtkinter.CTk()
 window.title("Palworld Save Converter")
-window.geometry(f"400x130+{(window.winfo_screenwidth() // 2 - 200)}+{(window.winfo_screenheight() // 2 - 65)}")
+window.geometry("400x200")
 icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "pal.ico")
 window.iconbitmap(icon_path)
-xgp_button = customtkinter.CTkButton(window, text="GamePass", command=get_save_game_pass, width=150)
-xgp_button.place(x=110, y=20)
-steam_button = customtkinter.CTkButton(window, text="Steam", command=get_save_steam, width=150)
-steam_button.place(x=110, y=70)
-progressbar = customtkinter.CTkProgressBar(window, orientation="horizontal", mode="determinate", width=350)
+main_frame = customtkinter.CTkFrame(window, fg_color="transparent")
+main_frame.pack(expand=True, fill="both")
+xgp_button = customtkinter.CTkButton(main_frame, text="GamePass", command=get_save_game_pass, width=150)
+xgp_button.pack(pady=(20, 10))
+steam_button = customtkinter.CTkButton(main_frame, text="Steam", command=get_save_steam, width=150)
+steam_button.pack(pady=(0, 10))
+progressbar = customtkinter.CTkProgressBar(main_frame, orientation="horizontal", mode="determinate", width=350)
 progressbar.set(0)
+progressbar.pack(pady=(0, 10))
+save_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+save_frame.pack(pady=(10, 10))
+def update_combobox(saveList):
+    global saves
+    saves = saveList
+    for widget in save_frame.winfo_children():
+        widget.destroy()
+    if saves:
+        combobox = customtkinter.CTkComboBox(save_frame, values=saves, width=320, font=("Arial", 14))
+        combobox.pack(pady=(10, 10))
+        combobox.set("Choose a save to convert:")
+        button = customtkinter.CTkButton(save_frame, width=150, text="Convert Save", command=lambda: convert_JSON_sav(combobox.get()))
+        button.pack(pady=(0, 10))
 def on_exit():
     try:
         window.destroy()
