@@ -40,8 +40,7 @@ def main():
         print(f"Usage: {sys.argv[0]} <save_folder>")
         os.system("pause")
         exit(1)
-    print("WARNING: This tool is experimental. Always manually back up your existing saves!")
-    print()
+    print("WARNING: This tool is experimental. Always manually back up your existing saves!\n")
     package_path = os.path.expandvars(r"%LOCALAPPDATA%\Packages\PocketpairInc.Palworld_ad4psfrxyesvt")
     if not os.path.exists(package_path):
         print("Error: Could not find the package path. Make sure you have Xbox Palworld installed.")
@@ -60,14 +59,13 @@ def main():
         exit(2)
     print(f"Found container path: {container_path}")
     container_index_path = os.path.join(container_path, "containers.index")
-    container_index_file = open(container_index_path, "rb")
-    try:
-        container_index = ContainerIndex.from_stream(container_index_file)
-    except NotSupportedError as e:
-        print(f"Error: Detected unsupported container format, please report this issue: {e}")
-        os.system("pause")
-        exit(3)
-    container_index_file.close()
+    with open(container_index_path, "rb") as container_index_file:
+        try:
+            container_index = ContainerIndex.from_stream(container_index_file)
+        except NotSupportedError as e:
+            print(f"Error: Detected unsupported container format, please report this issue: {e}")
+            os.system("pause")
+            exit(3)
     print("Parsed container index:")
     print(f"  Package name: {container_index.package_name}")
     print(f"  {len(container_index.containers)} containers:")
@@ -93,8 +91,7 @@ def main():
         exit(4)
     save_name = os.path.basename(source_save_path)
     print("Save file:")
-    print(f"  Folder: {source_save_path}")
-    print()
+    print(f"  Folder: {source_save_path}\n")
     existing_names = {c.container_name for c in container_index.containers}
     base_name = f"{save_name}-Level"
     new_name = base_name
@@ -104,7 +101,7 @@ def main():
         i += 1
     if new_name != base_name:
         print(f"Warning: Save file name conflict detected. Renaming to {new_name}")
-    container_backup_path = os.path.join(container_path, f"{container_path}.backup.{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}")
+    container_backup_path = os.path.join(container_path, f"{os.path.basename(container_path)}.backup.{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}")
     shutil.copytree(container_path, container_backup_path)
     print(f"Created backup of container: {container_backup_path}")
     print("Creating new containers")

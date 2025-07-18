@@ -2,8 +2,11 @@ from import_libs import *
 saves = []
 save_extractor_done = threading.Event()
 save_converter_done = threading.Event()
+base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+root_dir = os.path.abspath(os.path.join(base_dir, ".."))
 def get_save_game_pass():
-    if os.path.exists("./saves"): shutil.rmtree("./saves")
+    saves_path = os.path.join(root_dir, "saves")
+    if os.path.exists(saves_path): shutil.rmtree(saves_path)
     print("Fetching save from GamePass...")
     progressbar.set(0.0)
     threading.Thread(target=check_for_zip_files, daemon=True).start()
@@ -22,48 +25,42 @@ def check_progress(progressbar):
     else:
         window.after(1000, check_progress, progressbar)
 def check_for_zip_files():
-    if not find_zip_files("./"):
+    if not find_zip_files(root_dir):
         print("Fetching zip files from local directory...")
         threading.Thread(target=run_save_extractor, daemon=True).start()
     else:
         process_zip_files()
 def process_zip_files():
-    if is_folder_empty("./saves"):
-        zip_files = find_zip_files("./")
+    saves_path = os.path.join(root_dir, "saves")
+    if is_folder_empty(saves_path):
+        zip_files = find_zip_files(root_dir)
         print(zip_files)
         if zip_files:
-            unzip_file(zip_files[0], "./saves")
+            full_zip_path = os.path.join(root_dir, zip_files[0])
+            unzip_file(full_zip_path, saves_path)
             save_extractor_done.set()
         else:
             print("No save files found on XGP please reinstall the game on XGP and try again")
             window.quit()
 def convert_save_files(progressbar):
-    saveFolders = list_folders_in_directory("./saves")
+    saves_path = os.path.join(root_dir, "saves")
+    saveFolders = list_folders_in_directory(saves_path)
     if not saveFolders:
-        print("No save files found")        
+        print("No save files found")
         return
     saveList = []
-    for saveName in saveFolders:        
-        name = convert_sav_JSON(saveName)        
-        if name: saveList.append(name)        
+    for saveName in saveFolders:
+        name = convert_sav_JSON(saveName)
+        if name: saveList.append(name)
     update_combobox(saveList)
     progressbar.destroy()
     print("Choose a save to convert:")
 def run_save_extractor():
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    if getattr(sys, 'frozen', False):
-        base_path = getattr(sys, '_MEIPASS', os.path.abspath('.'))
-        base_path = os.path.normpath(base_path)
-        if os.path.basename(base_path) == "Assets":
-            script_path = os.path.join(base_path, "xgp_save_extract.py")
-        else:
-            script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        if os.path.basename(base_path) == "Assets":
-            script_path = os.path.join(base_path, "xgp_save_extract.py")
-        else:
-            script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
+    python_exe = sys.executable if getattr(sys, 'frozen', False) else os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+    base = base_dir
+    if not os.path.exists(os.path.join(base, "xgp_save_extract.py")):
+        base = os.path.join(base, "Assets")
+    script_path = os.path.join(base, "xgp_save_extract.py")
     print(f"Running script at: {script_path}")
     command = [python_exe, script_path]
     try:
@@ -93,21 +90,57 @@ def unzip_file(zip_file_path, extract_to_folder):
     os.makedirs(extract_to_folder, exist_ok=True)
     with zipfile.ZipFile(zip_file_path, 'r') as zip_ref: zip_ref.extractall(extract_to_folder)
 def convert_sav_JSON(saveName):
-    save_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav")
+    save_path = os.path.join(root_dir, "saves", saveName, "Level", "01.sav")
     if not os.path.exists(save_path): return None
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    subprocess.run([python_exe, "-m", "palworld_save_tools.commands.convert", save_path], check=True)
+    if getattr(sys, 'frozen', False):
+        import sys as sys_module
+        from palworld_save_tools.commands import convert
+        old_argv = sys_module.argv
+        try:
+            sys_module.argv = ["convert", save_path]
+            convert.main()
+        except Exception as e:
+            print(f"Error converting save (frozen): {e}")
+            return None
+        finally:
+            sys_module.argv = old_argv
+    else:
+        python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = base_dir + os.pathsep + env.get("PYTHONPATH", "")
+        try:
+            subprocess.run([python_exe, "-m", "palworld_save_tools.commands.convert", save_path], check=True, env=env, cwd=base_dir)
+        except subprocess.CalledProcessError as e:
+            print(f"Error converting save (unfrozen): {e}")
+            return None
     return saveName
 def convert_JSON_sav(saveName):
-    python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    json_path = os.path.abspath(f"./saves/{saveName}/Level/01.sav.json")
-    output_path = os.path.abspath(f"./saves/{saveName}/Level.sav")
-    try:
-        subprocess.run([python_exe, "-m", "palworld_save_tools.commands.convert", json_path, "--output", output_path], check=True)
-        os.remove(json_path)
-        move_save_steam(saveName)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e}")
+    json_path = os.path.join(root_dir, "saves", saveName, "Level", "01.sav.json")
+    output_path = os.path.join(root_dir, "saves", saveName, "Level.sav")
+    if not os.path.exists(json_path): return
+    if getattr(sys, 'frozen', False):
+        import sys as sys_module
+        from palworld_save_tools.commands import convert
+        old_argv = sys_module.argv
+        try:
+            sys_module.argv = ["convert", json_path, "--output", output_path]
+            convert.main()
+            os.remove(json_path)
+            move_save_steam(saveName)
+        except Exception as e:
+            print(f"Error converting JSON save (frozen): {e}")
+        finally:
+            sys_module.argv = old_argv
+    else:
+        python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = base_dir + os.pathsep + env.get("PYTHONPATH", "")
+        try:
+            subprocess.run([python_exe, "-m", "palworld_save_tools.commands.convert", json_path, "--output", output_path], check=True, env=env, cwd=base_dir)
+            os.remove(json_path)
+            move_save_steam(saveName)
+        except subprocess.CalledProcessError as e:
+            print(f"Error converting JSON save (unfrozen): {e}")
 def generate_random_name(length=32):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 def move_save_steam(saveName):
@@ -117,24 +150,24 @@ def move_save_steam(saveName):
         subdirs = [d for d in os.listdir(local_app_data_path) if os.path.isdir(os.path.join(local_app_data_path, d))]
         if not subdirs: raise FileNotFoundError()
         target_folder = os.path.join(local_app_data_path, subdirs[0])
-        source_folder = os.path.join("./saves", saveName)
+        source_folder = os.path.join(root_dir, "saves", saveName)
         def ignore_folders(_, names): return {n for n in names if n in {"Level", "Slot1", "Slot2", "Slot3"}}
         new_name = generate_random_name()
         new_target_folder = os.path.join(target_folder, new_name if os.path.exists(os.path.join(target_folder, saveName)) else saveName)
         shutil.copytree(source_folder, new_target_folder, dirs_exist_ok=True, ignore=ignore_folders)
-        game_pass_save_path = os.path.join(os.getcwd(), "GamePassSave")
+        game_pass_save_path = os.path.join(root_dir, "GamePassSave")
         os.makedirs(game_pass_save_path, exist_ok=True)
         new_gamepass_target_folder = os.path.join(game_pass_save_path, new_name)
         shutil.copytree(source_folder, new_gamepass_target_folder, dirs_exist_ok=True, ignore=ignore_folders)
         messagebox.showinfo("Success", "Your save is migrated to Steam. You may go ahead and open Steam Palworld.")
-        shutil.rmtree("./saves")
+        shutil.rmtree(os.path.join(root_dir, "saves"))
         window.quit()
     except Exception as e:
         print(f"Error copying save folder: {e}")
         messagebox.showerror("Error", f"Failed to copy the save folder: {e}")
 def transfer_steam_to_gamepass(source_folder):
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    main_py_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "palworld_xpg_import", "main.py")
+    main_py_path = os.path.join(base_dir, "palworld_xpg_import", "main.py")
     try:
         subprocess.run([python_exe, main_py_path, source_folder], check=True)
         messagebox.showinfo("Success", "Steam save exported to GamePass format!")
@@ -144,7 +177,7 @@ def transfer_steam_to_gamepass(source_folder):
 window = customtkinter.CTk()
 window.title("Palworld Save Converter")
 window.geometry("400x200")
-icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "pal.ico")
+icon_path = os.path.join(base_dir, "resources", "pal.ico")
 window.iconbitmap(icon_path)
 main_frame = customtkinter.CTkFrame(window, fg_color="transparent")
 main_frame.pack(expand=True, fill="both")
