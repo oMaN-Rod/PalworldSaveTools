@@ -4,29 +4,114 @@ import importlib.util
 import tkinter as tk
 from tkinter import messagebox
 
-# Import the refactored modules from Assets only when needed
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
+def is_frozen():
+    return getattr(sys, 'frozen', False)
 
-# Explicit imports for cx_Freeze compatibility
-try:
-    # Import all modules that are used in import_and_call
-    import convert_level_location_finder
-    import convert_players_location_finder
-    import game_pass_save_fix
-    import convertids
-    import coords
-    import all_in_one_deletion
-    import paldefender_bases
-    import slot_injector
-    import modify_save
-    import character_transfer
-    import fix_host_save
-    import fix_host_save_manual
-    import restore_map
-    from common import ICON_PATH, get_versions, open_file_with_default_app
-except ImportError:
-    # Handle frozen executable case
-    from Assets.common import ICON_PATH, get_versions, open_file_with_default_app
+def get_assets_path():
+    if is_frozen():
+        return os.path.join(os.path.dirname(sys.executable), "Assets")
+    else:
+        return os.path.join(os.path.dirname(__file__), "Assets")
+
+def setup_import_paths():
+    assets_path = get_assets_path()
+    
+    # Add Assets directory to path if not already there
+    if assets_path not in sys.path:
+        sys.path.insert(0, assets_path)
+    
+    # Add subdirectories for modular imports
+    subdirs = ['palworld_coord', 'palworld_save_tools', 'palworld_xgp_import']
+    for subdir in subdirs:
+        subdir_path = os.path.join(assets_path, subdir)
+        if os.path.exists(subdir_path) and subdir_path not in sys.path:
+            sys.path.insert(0, subdir_path)
+
+# Setup import paths
+setup_import_paths()
+
+class LazyImporter:
+    
+    def __init__(self):
+        self._modules = {}
+        self._common_funcs = None
+    
+    def _try_import(self, module_name):
+        if module_name in self._modules:
+            return self._modules[module_name]
+        
+        # Strategy 1: Direct import (for normal execution)
+        try:
+            module = importlib.import_module(module_name)
+            self._modules[module_name] = module
+            return module
+        except ImportError:
+            pass
+        
+        # Strategy 2: Import from Assets package (for frozen builds)
+        try:
+            if is_frozen():
+                full_module_name = f"Assets.{module_name}"
+            else:
+                full_module_name = f"Assets.{module_name}"
+            module = importlib.import_module(full_module_name)
+            self._modules[module_name] = module
+            return module
+        except ImportError:
+            pass
+        
+        # Strategy 3: Try direct file import
+        try:
+            assets_path = get_assets_path()
+            module_file = os.path.join(assets_path, f"{module_name}.py")
+            if os.path.exists(module_file):
+                spec = importlib.util.spec_from_file_location(module_name, module_file)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    self._modules[module_name] = module
+                    return module
+        except Exception:
+            pass
+        
+        raise ImportError(f"Could not import module: {module_name}")
+    
+    def get_module(self, module_name):
+        return self._try_import(module_name)
+    
+    def get_function(self, module_name, function_name):
+        module = self.get_module(module_name)
+        return getattr(module, function_name)
+    
+    def get_common_functions(self):
+        if self._common_funcs is not None:
+            return self._common_funcs
+        
+        try:
+            common_module = self._try_import('common')
+            self._common_funcs = {
+                'ICON_PATH': getattr(common_module, 'ICON_PATH', 'Assets/resources/pal.ico'),
+                'get_versions': getattr(common_module, 'get_versions', lambda: ("Unknown", "Unknown")),
+                'open_file_with_default_app': getattr(common_module, 'open_file_with_default_app', lambda x: None)
+            }
+        except ImportError:
+            # Provide defaults if common module can't be imported
+            self._common_funcs = {
+                'ICON_PATH': 'Assets/resources/pal.ico',
+                'get_versions': lambda: ("Unknown", "Unknown"),
+                'open_file_with_default_app': lambda x: None
+            }
+        
+        return self._common_funcs
+
+# Initialize the lazy importer
+lazy_importer = LazyImporter()
+
+# Get common functions
+common_funcs = lazy_importer.get_common_functions()
+ICON_PATH = common_funcs['ICON_PATH']
+get_versions = common_funcs['get_versions']
+open_file_with_default_app = common_funcs['open_file_with_default_app']
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 def is_frozen():
@@ -75,34 +160,13 @@ def display_logo():
     print(f"{center_text(f'{RED_FONT}IF YOU DO NOT UPDATE YOUR SAVES, YOU WILL GET ERRORS!{RESET_FONT}')}")
     print(center_text("=" * 85))
 def run_tool(choice):
-    if is_frozen():
-        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
-    else:
-        assets_folder = os.path.join(os.path.dirname(__file__), "Assets")    
-    # Module mapping for cx_Freeze compatibility
-    MODULE_MAP = {
-        'convert_level_location_finder': convert_level_location_finder,
-        'convert_players_location_finder': convert_players_location_finder,
-        'game_pass_save_fix': game_pass_save_fix,
-        'convertids': convertids,
-        'coords': coords,
-        'all_in_one_deletion': all_in_one_deletion,
-        'paldefender_bases': paldefender_bases,
-        'slot_injector': slot_injector,
-        'modify_save': modify_save,
-        'character_transfer': character_transfer,
-        'fix_host_save': fix_host_save,
-        'fix_host_save_manual': fix_host_save_manual,
-        'restore_map': restore_map,
-    }
-    
+    """Run a tool using the lazy importer system."""
     def import_and_call(module_name, function_name, *args):
-        module = MODULE_MAP.get(module_name)
-        if module is None:
-            raise ImportError(f"Module not found: {module_name}")
-        
-        func = getattr(module, function_name)
-        return func(*args) if args else func()
+        try:
+            func = lazy_importer.get_function(module_name, function_name)
+            return func(*args) if args else func()
+        except ImportError as e:
+            raise ImportError(f"Module not found and could not be imported: {module_name}") from e
     
     tool_lists = [
         [
@@ -134,45 +198,50 @@ def run_tool(choice):
         tool_lists[category_index][tool_index]()
     except Exception as e:
         print(f"Invalid choice or error running tool: {e}")
+        raise
 def scan_save():
-    # Import scan_save function dynamically to avoid import issues
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
-    from scan_save import scan_save as scan_save_func
-    
-    if is_frozen():
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.abspath(".")
-    
-    for file in ["scan_save.log", "players.log", "sort_players.log"]:
-        Path(file).unlink(missing_ok=True)
-    
-    level_sav_path = os.path.join(base_path, "PalworldSave", "Level.sav")
-    if os.path.exists(level_sav_path):
-        print(f"Found Level.sav at: {level_sav_path}")
-        print("Now starting the tool...")
-        success = scan_save_func(str(level_sav_path))
-        if not success:
-            print(f"{RED_FONT}Error scanning save file!{RESET_FONT}")
-    else:
-        print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
-        print(f"Current working directory: {os.getcwd()}")
-        print(f"Looking for file at: {level_sav_path}")
-        print("Make sure to place your Level.sav file in the PalworldSave folder.")
+    try:
+        scan_save_func = lazy_importer.get_function("scan_save", "scan_save")
+        
+        if is_frozen():
+            base_path = os.path.dirname(sys.executable)
+        else:
+            base_path = os.path.abspath(".")
+        
+        for file in ["scan_save.log", "players.log", "sort_players.log"]:
+            Path(file).unlink(missing_ok=True)
+        
+        level_sav_path = os.path.join(base_path, "PalworldSave", "Level.sav")
+        if os.path.exists(level_sav_path):
+            print(f"Found Level.sav at: {level_sav_path}")
+            print("Now starting the tool...")
+            success = scan_save_func(str(level_sav_path))
+            if not success:
+                print(f"{RED_FONT}Error scanning save file!{RESET_FONT}")
+        else:
+            print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Looking for file at: {level_sav_path}")
+            print("Make sure to place your Level.sav file in the PalworldSave folder.")
+    except ImportError as e:
+        print(f"Error importing scan_save: {e}")
+
 def generate_map():
-    # Import generate_map function dynamically to avoid import issues
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
-    from bases import generate_map as generate_map_func
-    
-    success = generate_map_func()
-    if success:
-        if Path("updated_worldmap.png").exists():
-            print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
-            open_file_with_default_app("updated_worldmap.png")
-        else: 
-            print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
-    else:
-        print(f"{RED_FONT}Error generating map!{RESET_FONT}")
+    """Generate map using the lazy importer system."""
+    try:
+        generate_map_func = lazy_importer.get_function("bases", "generate_map")
+        
+        success = generate_map_func()
+        if success:
+            if Path("updated_worldmap.png").exists():
+                print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
+                open_file_with_default_app("updated_worldmap.png")
+            else: 
+                print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
+        else:
+            print(f"{RED_FONT}Error generating map!{RESET_FONT}")
+    except ImportError as e:
+        print(f"Error importing generate_map: {e}")
 converting_tools = [
     "Convert Level.sav file to Level.json",
     "Convert Level.json file back to Level.sav",

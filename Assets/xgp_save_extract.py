@@ -150,6 +150,7 @@ def get_save_paths(
         raise Exception(f'Unsupported handler "{store_pkg_name}" for PalWorld saves.')    
     save_meta = []
     for container in containers:
+        if "files" not in container or len(container["files"]) == 0: continue
         fname = container["name"].replace("-", "/") + ".sav"
         fpath = container["files"][0]["path"]
         save_meta.append((fname, fpath))    
