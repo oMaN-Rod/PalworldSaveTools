@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime
 from scan_save import decompress_sav_to_gvas, GvasFile, PALWORLD_TYPE_HINTS, SKP_PALWORLD_CUSTOM_PROPERTIES, compress_gvas_to_sav
 from tkinter import simpledialog
+from common import ICON_PATH
 current_save_path = None
 loaded_level_json = None
 def as_uuid(val): return str(val).replace('-', '').lower() if val else ''
@@ -667,36 +668,42 @@ def update_stats_section(stat_labels, section, data):
         label_key = f"{section_key}_{key.lower()}"
         if label_key in stat_labels:
             stat_labels[label_key].config(text=f"{key.capitalize()}: {val}")
-def refresh_stats(section):
-    stats = get_current_stats()
-    if section == "Before Deletion":
-        refresh_stats.stats_before = stats
-    update_stats_section(stat_labels, section, stats)
-    if section == "After Deletion" and hasattr(refresh_stats, "stats_before"):
-        before = refresh_stats.stats_before
-        result = {k: before[k] - stats.get(k, 0) for k in before}
-        update_stats_section(stat_labels, "Deletion Result", result)
-window = tk.Tk()
-window.title("All in One Deletion Tool")
-window.geometry("1400x700")
-window.config(bg="#2f2f2f")
-font = ("Arial", 10)
-s = ttk.Style(window)
-s.theme_use('clam')
-try: window.iconbitmap(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resources", "pal.ico"))
-except Exception: pass
-for opt in [
-    ("Treeview.Heading", {"font": ("Arial", 12, "bold"), "background": "#444", "foreground": "white"}),
-    ("Treeview", {"background": "#333", "foreground": "white", "fieldbackground": "#333"}),
-    ("TFrame", {"background": "#2f2f2f"}),
-    ("TLabel", {"background": "#2f2f2f", "foreground": "white"}),
-    ("TEntry", {"fieldbackground": "#444", "foreground": "white"}),
-    ("Dark.TButton", {"background": "#555555", "foreground": "white", "font": font, "padding": 6}),
-]:
-    s.configure(opt[0], **opt[1])
-s.map("Dark.TButton",
-      background=[("active", "#666666"), ("!disabled", "#555555")],
-      foreground=[("disabled", "#888888"), ("!disabled", "white")])
+def all_in_one_deletion():
+    global window, stat_labels, guild_tree, base_tree, player_tree, guild_members_tree
+    global guild_search_var, base_search_var, player_search_var, guild_members_search_var
+    global guild_result, base_result, player_result
+    
+    def refresh_stats(section):
+        stats = get_current_stats()
+        if section == "Before Deletion":
+            refresh_stats.stats_before = stats
+        update_stats_section(stat_labels, section, stats)
+        if section == "After Deletion" and hasattr(refresh_stats, "stats_before"):
+            before = refresh_stats.stats_before
+            result = {k: before[k] - stats.get(k, 0) for k in before}
+            update_stats_section(stat_labels, "Deletion Result", result)
+    
+    window = tk.Tk()
+    window.title("All in One Deletion Tool")
+    window.geometry("1400x700")
+    window.config(bg="#2f2f2f")
+    font = ("Arial", 10)
+    s = ttk.Style(window)
+    s.theme_use('clam')
+    try: window.iconbitmap(ICON_PATH)
+    except Exception: pass
+    for opt in [
+        ("Treeview.Heading", {"font": ("Arial", 12, "bold"), "background": "#444", "foreground": "white"}),
+        ("Treeview", {"background": "#333", "foreground": "white", "fieldbackground": "#333"}),
+        ("TFrame", {"background": "#2f2f2f"}),
+        ("TLabel", {"background": "#2f2f2f", "foreground": "white"}),
+        ("TEntry", {"fieldbackground": "#444", "foreground": "white"}),
+        ("Dark.TButton", {"background": "#555555", "foreground": "white", "font": font, "padding": 6}),
+    ]:
+        s.configure(opt[0], **opt[1])
+    s.map("Dark.TButton",
+          background=[("active", "#666666"), ("!disabled", "#555555")],
+          foreground=[("disabled", "#888888"), ("!disabled", "white")])
 def create_search_panel(parent, label_text, search_var, search_callback, tree_columns, tree_headings, tree_col_widths, width, height, tree_height=24):
     panel = ttk.Frame(parent, style="TFrame")
     panel.place(width=width, height=height)
@@ -768,9 +775,14 @@ btn_delete_player.place(x=base_x + panel_width * 0.18 - (btn_delete_player.winfo
 btn_fix_duplicate_players.place(x=base_x + panel_width * 0.50 - (btn_fix_duplicate_players.winfo_reqwidth() // 2), y=y_pos)
 btn_delete_inactive_players.place(x=base_x + panel_width * 0.82 - (btn_delete_inactive_players.winfo_reqwidth() // 2), y=y_pos)
 stat_labels = create_stats_panel(window)
-def on_exit():
-    if window.winfo_exists():
-        window.destroy()
-    sys.exit()
-window.protocol("WM_DELETE_WINDOW", on_exit)
-window.mainloop()
+
+def all_in_one_deletion():
+    def on_exit():
+        if window.winfo_exists():
+            window.destroy()
+        sys.exit()
+    window.protocol("WM_DELETE_WINDOW", on_exit)
+    window.mainloop()
+
+if __name__ == "__main__":
+    all_in_one_deletion()

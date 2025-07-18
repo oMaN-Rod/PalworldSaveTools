@@ -1,8 +1,16 @@
-import os, subprocess, sys, shutil
+import os, sys, shutil
 from pathlib import Path
 import importlib.util
 import tkinter as tk
 from tkinter import messagebox
+
+# Import the refactored modules from Assets only when needed
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
+try:
+    from common import ICON_PATH, get_versions, open_file_with_default_app
+except ImportError:
+    # Handle frozen executable case
+    from Assets.common import ICON_PATH, get_versions, open_file_with_default_app
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 def is_frozen():
@@ -12,43 +20,6 @@ def get_python_executable():
         return sys.executable
     else:
         return sys.executable
-def run_python_script(script_path, *args, change_cwd=True):
-    if not os.path.exists(script_path):
-        print(f"Error: Script not found: {script_path}")
-        return    
-    try:
-        original_argv = sys.argv.copy()
-        original_path = sys.path.copy()
-        original_cwd = os.getcwd()
-        original_builtins = None
-        assets_folder = os.path.dirname(script_path)
-        if assets_folder not in sys.path:
-            sys.path.insert(0, assets_folder)
-        sys.argv = [script_path] + list(args)
-        if change_cwd:
-            os.chdir(assets_folder)
-        spec = importlib.util.spec_from_file_location("__main__", script_path)
-        module = importlib.util.module_from_spec(spec)
-        import builtins
-        original_builtins = builtins.__dict__.copy()
-        builtins.exit = sys.exit
-        builtins.quit = sys.exit        
-        sys.modules["__main__"] = module
-        spec.loader.exec_module(module)        
-    except SystemExit:
-        pass
-    except Exception as e:
-        print(f"Error running {script_path}: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        sys.argv = original_argv
-        sys.path = original_path
-        os.chdir(original_cwd)
-        if original_builtins is not None:
-            import builtins
-            builtins.__dict__.clear()
-            builtins.__dict__.update(original_builtins)
 RED_FONT = "\033[91m"
 BLUE_FONT = "\033[94m"
 GREEN_FONT = "\033[92m"
@@ -66,10 +37,6 @@ def setup_environment():
             pass
     os.system('cls' if os.name == 'nt' else 'clear')
     os.makedirs("PalworldSave/Players", exist_ok=True)
-def get_versions():
-    tools_version = "1.0.68"
-    game_version = "0.6.2"
-    return tools_version, game_version
 try:
     columns = os.get_terminal_size().columns
 except OSError:
@@ -96,40 +63,34 @@ def run_tool(choice):
         assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
     else:
         assets_folder = os.path.join(os.path.dirname(__file__), "Assets")    
-    def run_script(script_name, *args):
-        script_path = os.path.join(assets_folder, script_name)
-        print(f"Running {script_name}...")
-        if is_frozen():
-            run_python_script(script_path, *args)
-        else:
-            python_exe = get_python_executable()
-            try:
-                subprocess.run([python_exe, script_path] + list(args), check=True)
-            except subprocess.CalledProcessError as e:
-                print(f"Error running {script_name}: {e}")
+    def import_and_call(module_name, function_name, *args):
+        module = __import__(module_name)
+        func = getattr(module, function_name)
+        return func(*args) if args else func()
+    
     tool_lists = [
         [
-            lambda: run_script("convert_level_location_finder.py", "json"),
-            lambda: run_script("convert_level_location_finder.py", "sav"),
-            lambda: run_script("convert_players_location_finder.py", "json"),
-            lambda: run_script("convert_players_location_finder.py", "sav"),
-            lambda: run_script("game_pass_save_fix.py"),
-            lambda: run_script("convertids.py"),
-            lambda: run_script("coords.py"),
+            lambda: import_and_call("convert_level_location_finder", "convert_level_location_finder", "json"),
+            lambda: import_and_call("convert_level_location_finder", "convert_level_location_finder", "sav"),
+            lambda: import_and_call("convert_players_location_finder", "convert_players_location_finder", "json"),
+            lambda: import_and_call("convert_players_location_finder", "convert_players_location_finder", "sav"),
+            lambda: import_and_call("game_pass_save_fix", "game_pass_save_fix"),
+            lambda: import_and_call("convertids", "convert_steam_id"),
+            lambda: import_and_call("coords", "convert_coordinates"),
         ],
         [
-            lambda: run_script("all_in_one_deletion.py"),
-            lambda: run_script("paldefender_bases.py"),
+            lambda: import_and_call("all_in_one_deletion", "all_in_one_deletion"),
+            lambda: import_and_call("paldefender_bases", "paldefender_bases"),
         ],
         [
-            lambda: run_script("slot_injector.py"),
-            lambda: run_script("modify_save.py"),
+            lambda: import_and_call("slot_injector", "slot_injector"),
+            lambda: import_and_call("modify_save", "modify_save"),
             scan_save,
             generate_map,
-            lambda: run_script("character_transfer.py"),
-            lambda: run_script("fix_host_save.py"),
-            lambda: run_script("fix_host_save_manual.py"),
-            lambda: run_script("restore_map.py"),
+            lambda: import_and_call("character_transfer", "character_transfer"),
+            lambda: import_and_call("fix_host_save", "fix_host_save"),
+            lambda: import_and_call("fix_host_save_manual", "fix_host_save_manual"),
+            lambda: import_and_call("restore_map", "restore_map"),
         ]
     ]
     try:
@@ -138,38 +99,44 @@ def run_tool(choice):
     except Exception as e:
         print(f"Invalid choice or error running tool: {e}")
 def scan_save():
+    # Import scan_save function dynamically to avoid import issues
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
+    from scan_save import scan_save as scan_save_func
+    
     if is_frozen():
         base_path = os.path.dirname(sys.executable)
-        assets_folder = os.path.join(base_path, "Assets")
     else:
         base_path = os.path.abspath(".")
-        assets_folder = "Assets"
+    
     for file in ["scan_save.log", "players.log", "sort_players.log"]:
         Path(file).unlink(missing_ok=True)
+    
     level_sav_path = os.path.join(base_path, "PalworldSave", "Level.sav")
     if os.path.exists(level_sav_path):
-        script_path = os.path.join(assets_folder, "scan_save.py")
         print(f"Found Level.sav at: {level_sav_path}")
         print("Now starting the tool...")
-        if is_frozen():
-            run_python_script(script_path, str(level_sav_path), change_cwd=True)
-        else:
-            subprocess.run([get_python_executable(), script_path, str(level_sav_path)], cwd=base_path)
+        success = scan_save_func(str(level_sav_path))
+        if not success:
+            print(f"{RED_FONT}Error scanning save file!{RESET_FONT}")
     else:
         print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
         print(f"Current working directory: {os.getcwd()}")
         print(f"Looking for file at: {level_sav_path}")
         print("Make sure to place your Level.sav file in the PalworldSave folder.")
 def generate_map():
-    if is_frozen():
-        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
-        run_python_script(os.path.join(assets_folder, "bases.py"))
+    # Import generate_map function dynamically to avoid import issues
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
+    from bases import generate_map as generate_map_func
+    
+    success = generate_map_func()
+    if success:
+        if Path("updated_worldmap.png").exists():
+            print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
+            open_file_with_default_app("updated_worldmap.png")
+        else: 
+            print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
     else:
-        subprocess.run([get_python_executable(), "-m", "Assets.bases"])
-    if Path("updated_worldmap.png").exists():
-        print(f"{GREEN_FONT}Opening updated_worldmap.png...{RESET_FONT}")
-        subprocess.run(["start", "updated_worldmap.png"], shell=True)
-    else: print(f"{RED_FONT}updated_worldmap.png not found.{RESET_FONT}")
+        print(f"{RED_FONT}Error generating map!{RESET_FONT}")
 converting_tools = [
     "Convert Level.sav file to Level.json",
     "Convert Level.json file back to Level.sav",
@@ -197,11 +164,11 @@ class MenuGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         try:
-            icon_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "Assets", "resources", "pal.ico")
-            if os.name == 'nt' and os.path.exists(icon_path):
-                self.iconbitmap(icon_path)
+            if os.name == 'nt' and os.path.exists(ICON_PATH):
+                self.iconbitmap(ICON_PATH)
         except Exception as e:
             print(f"Could not set icon: {e}")
+        tools_version, _ = get_versions()
         self.title(f"PalworldSaveTools v{tools_version}")
         self.configure(bg="#1e1e1e")
         self.geometry("800x650")
