@@ -131,6 +131,7 @@ steamapps\common\Palworld\Pal\Saved\SaveGames\0\RANDOMSERVERID\
 13. Paste them back into your actual save folder (host or server).
 14. Start the game/server and enjoy your character with all progress intact! 🎉
 
+---
 
 # Known bugs/issues:
 
