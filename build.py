@@ -1,6 +1,6 @@
 import os, sys, shutil, subprocess
 def clean_build():
-    build_dirs = ["build", "dist", "PST"]
+    build_dirs = ["build", "dist", "PST_standalone"]
     for dir_name in build_dirs:
         if os.path.exists(dir_name):
             print(f"Removing {dir_name}...")
@@ -17,15 +17,16 @@ def build_executable():
     try:
         subprocess.check_call([sys.executable, "setup.py", "build"])
         print("Build completed successfully!")
-        lib_folder = os.path.join("PST", "Assets", "palworld_save_tools", "lib")
+        lib_folder = os.path.join("PST_standalone", "Assets", "palworld_save_tools", "lib")
         if os.path.exists(lib_folder):
             print(f"Removing {lib_folder}...")
             shutil.rmtree(lib_folder)
-        zip_dist_folder("PST")
+        zip_dist_folder("PST_standalone")
     except subprocess.CalledProcessError as e:
         print(f"Build failed: {e}")
         sys.exit(1)
 def zip_dist_folder(folder_name):
+    return
     print(f"Now zipping {folder_name} into {folder_name}.zip...")
     shutil.make_archive(folder_name, 'zip', folder_name)
     print(f"Zipped {folder_name} to {folder_name}.zip")

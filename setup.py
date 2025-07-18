@@ -46,7 +46,7 @@ build_exe_options = {
     ],
     "zip_include_packages": [],
     "zip_exclude_packages": ["customtkinter"],
-    "build_exe": "PST",
+    "build_exe": "PST_standalone",
     "bin_includes": ["python311.dll"] if sys.platform == "win32" else []
 }
 customtkinter_assets = find_customtkinter_assets()
