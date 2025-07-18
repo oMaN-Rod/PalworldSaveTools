@@ -174,16 +174,16 @@ def move_save_steam(saveName):
 def transfer_steam_to_gamepass(source_folder):
     import sys as sys_module
     try:
-        # Add the palworld_xpg_import directory to sys.path temporarily
-        import_path = os.path.join(base_dir, "palworld_xpg_import")
+        # Add the palworld_xgp_import directory to sys.path temporarily
+        import_path = os.path.join(base_dir, "palworld_xgp_import")
         sys_module.path.insert(0, import_path)
         
         # Import and call the main function
-        from palworld_xpg_import import main as xpg_main
+        from palworld_xgp_import import main as xgp_main
         old_argv = sys_module.argv
         try:
             sys_module.argv = ["main.py", source_folder]
-            xpg_main.main()
+            xgp_main.main()
             messagebox.showinfo("Success", "Steam save exported to GamePass format!")
         except Exception as e:
             print(f"Error during conversion: {e}")
@@ -194,7 +194,7 @@ def transfer_steam_to_gamepass(source_folder):
             if import_path in sys_module.path:
                 sys_module.path.remove(import_path)
     except ImportError as e:
-        print(f"Error importing palworld_xpg_import module: {e}")
+        print(f"Error importing palworld_xgp_import module: {e}")
         messagebox.showerror("Error", f"Import failed: {e}")
 
 def update_combobox(saveList):
