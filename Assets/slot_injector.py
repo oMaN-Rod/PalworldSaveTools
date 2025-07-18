@@ -1,4 +1,14 @@
 from scan_save import *
+from datetime import datetime
+def backup_whole_directory(source_folder, backup_folder):
+    if not os.path.isabs(backup_folder):
+        base_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    if not os.path.exists(backup_folder): os.makedirs(backup_folder)
+    print("Now backing up the whole directory of the Level.sav's location...")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_folder, f"PalworldSave_backup_{timestamp}")
+    shutil.copytree(source_folder, backup_path)
+    print(f"Backup of {source_folder} created at: {backup_path}")
 def sav_to_json(filepath):
     with open(filepath, "rb") as f:
         data = f.read()
@@ -102,8 +112,14 @@ class SlotNumUpdaterApp(tk.Tk):
         if updated_count == 0:
             messagebox.showinfo("Info", f"No SlotNum entries with value {current_val} found.")
             return
+        backup_whole_directory(os.path.dirname(filepath), "Backups/Slot Injector")
         json_to_sav(level_json, filepath)
         messagebox.showinfo("Success", f"Updated {updated_count} SlotNum entries from {current_val} to {new_value} in Level.sav!")
 if __name__ == "__main__":
+    def on_exit():
+        try: app.destroy()
+        except: pass
+        sys.exit()
     app = SlotNumUpdaterApp()
+    app.protocol("WM_DELETE_WINDOW", on_exit)
     app.mainloop()

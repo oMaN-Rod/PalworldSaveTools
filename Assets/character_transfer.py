@@ -10,6 +10,9 @@ STRUCT_START = b'\x0f\x00\x00\x00StructProperty\x00'
 MAP_START = b'\x0c\x00\x00\x00MapProperty\x00'
 ARRAY_START = b'\x0e\x00\x00\x00ArrayProperty\x00'
 def backup_whole_directory(source_folder, backup_folder):
+    if not os.path.isabs(backup_folder):
+        base_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+        backup_folder = os.path.abspath(os.path.join(base_path, backup_folder))
     if not os.path.exists(backup_folder): os.makedirs(backup_folder)
     print("Now backing up the whole directory of the Level.sav's location...")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

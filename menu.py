@@ -139,23 +139,26 @@ def run_tool(choice):
         print(f"Invalid choice or error running tool: {e}")
 def scan_save():
     if is_frozen():
-        assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
+        base_path = os.path.dirname(sys.executable)
+        assets_folder = os.path.join(base_path, "Assets")
     else:
+        base_path = os.path.abspath(".")
         assets_folder = "Assets"
-    for file in ["scan_save.log", "players.log", "sort_players.log"]: Path(file).unlink(missing_ok=True)
-    if Path("Pal Logger").exists(): subprocess.run(["rmdir", "/s", "/q", "Pal Logger"], shell=True)
-    level_sav_path = Path("PalworldSave/Level.sav")
-    if level_sav_path.exists(): 
+    for file in ["scan_save.log", "players.log", "sort_players.log"]:
+        Path(file).unlink(missing_ok=True)
+    level_sav_path = os.path.join(base_path, "PalworldSave", "Level.sav")
+    if os.path.exists(level_sav_path):
         script_path = os.path.join(assets_folder, "scan_save.py")
-        print(f"Found Level.sav at: {level_sav_path.absolute()}")
+        print(f"Found Level.sav at: {level_sav_path}")
+        print("Now starting the tool...")
         if is_frozen():
-            run_python_script(script_path, str(level_sav_path), change_cwd=False)
+            run_python_script(script_path, str(level_sav_path), change_cwd=True)
         else:
-            subprocess.run([get_python_executable(), script_path, str(level_sav_path)])
-    else: 
+            subprocess.run([get_python_executable(), script_path, str(level_sav_path)], cwd=base_path)
+    else:
         print(f"{RED_FONT}Error: PalworldSave/Level.sav not found!{RESET_FONT}")
         print(f"Current working directory: {os.getcwd()}")
-        print(f"Looking for file at: {level_sav_path.absolute()}")
+        print(f"Looking for file at: {level_sav_path}")
         print("Make sure to place your Level.sav file in the PalworldSave folder.")
 def generate_map():
     if is_frozen():

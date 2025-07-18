@@ -60,7 +60,17 @@ def update_combobox(saveList):
         button.place(relx=0.5, rely=0.8, anchor="center")
 def run_save_extractor():
     python_exe = os.path.join("venv", "Scripts", "python.exe") if os.name == 'nt' else os.path.join("venv", "bin", "python")
-    command = [python_exe,  "xgp_save_extract.py"]
+    if getattr(sys, 'frozen', False):
+        base_path = getattr(sys, '_MEIPASS', os.path.abspath('.'))
+        if base_path.endswith("Assets"):
+            script_path = os.path.join(base_path, "xgp_save_extract.py")
+        else:
+            script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(base_path, "Assets", "xgp_save_extract.py")
+    print(f"Running script at: {script_path}")
+    command = [python_exe, script_path]
     try:
         subprocess.run(command, check=True)
         print("Command executed successfully")

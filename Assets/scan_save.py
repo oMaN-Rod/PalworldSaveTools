@@ -12,14 +12,18 @@ def set_console_title(title):
         pass
 batch_title = f"Pylar's Save Tool"
 set_console_title(batch_title)
-log_folder = "Pal Logger"
+if getattr(sys, 'frozen', False):
+    base_path = os.path.dirname(sys.executable)
+else:
+    base_path = os.getcwd()
+log_folder = os.path.join(base_path, "Save Scan Logger")
 os.makedirs(log_folder, exist_ok=True)
-log_file = "scan_save.log"
+log_file = os.path.join(log_folder, "scan_save.log")
+player_log_file = os.path.join(log_folder, "players.log")
 logging.basicConfig(level=logging.INFO, format='%(message)s',
                     handlers=[
                         logging.FileHandler(log_file, encoding='utf-8', errors='replace'), 
                         logging.StreamHandler(sys.stdout)])
-player_log_file = "players.log"
 player_logger = logging.getLogger('playerLogger')
 player_logger.setLevel(logging.INFO)
 player_logger.propagate = False
@@ -482,6 +486,18 @@ def ShowPlayers():
         f"Total Bases: {total_bases} \n")
     logging.info(header_line)
 def resort_player_log(file_path, header_line):
+    if not os.path.isabs(file_path):
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        log_folder = os.path.abspath(os.path.join(base_dir, "..", "Save Scan Logger"))
+        os.makedirs(log_folder, exist_ok=True)
+        file_path = os.path.join(log_folder, file_path)
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(header_line)
+        return
     try:
         with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
             lines = file.readlines()
