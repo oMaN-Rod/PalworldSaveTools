@@ -152,3 +152,9 @@ steamapps\common\Palworld\Pal\Saved\SaveGames\0\RANDOMSERVERID\
    - **Solutions:**  
      - Use `Fix Host Save` for transfers **within the same save** to keep your guild.  
      - Make someone else the **guild leader**, leave the guild, transfer, then get re-invited.
+
+4. **struct.error when parsing the save**  
+   - Put the outdated save on Solo, Coop, or Dedicated Server.
+   - Load the save and play **once** to let the game auto-update the save file structure.  
+   - Ensure your saves were updated **on or after** the current game patch to prevent `struct.error`.  
+   - This works because the game rewrites save data structures between versions during play.
