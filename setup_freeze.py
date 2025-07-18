@@ -32,24 +32,7 @@ build_exe_options = {
         "numpy",
         "ooz"
     ],
-    "includes": [
-        "Assets.palworld_coord", 
-        "Assets.palworld_save_tools", 
-        "Assets.common", 
-        "Assets.game_pass_save_fix",
-        "Assets.convert_level_location_finder",
-        "Assets.convert_players_location_finder",
-        "Assets.convertids",
-        "Assets.coords",
-        "Assets.all_in_one_deletion",
-        "Assets.paldefender_bases",
-        "Assets.slot_injector",
-        "Assets.modify_save",
-        "Assets.character_transfer",
-        "Assets.fix_host_save",
-        "Assets.fix_host_save_manual",
-        "Assets.restore_map"
-    ],
+    "includes": ["Assets.palworld_coord", "Assets.palworld_save_tools", "Assets.common"],
     "excludes": [
         "test", "unittest", "pdb", "tkinter.test", "lib2to3", "distutils",
         "setuptools", "pip", "wheel", "venv", "ensurepip", "msgpack",

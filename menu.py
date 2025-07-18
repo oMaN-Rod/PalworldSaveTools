@@ -6,7 +6,23 @@ from tkinter import messagebox
 
 # Import the refactored modules from Assets only when needed
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Assets"))
+
+# Explicit imports for cx_Freeze compatibility
 try:
+    # Import all modules that are used in import_and_call
+    import convert_level_location_finder
+    import convert_players_location_finder
+    import game_pass_save_fix
+    import convertids
+    import coords
+    import all_in_one_deletion
+    import paldefender_bases
+    import slot_injector
+    import modify_save
+    import character_transfer
+    import fix_host_save
+    import fix_host_save_manual
+    import restore_map
     from common import ICON_PATH, get_versions, open_file_with_default_app
 except ImportError:
     # Handle frozen executable case
@@ -63,8 +79,28 @@ def run_tool(choice):
         assets_folder = os.path.join(os.path.dirname(sys.executable), "Assets")
     else:
         assets_folder = os.path.join(os.path.dirname(__file__), "Assets")    
+    # Module mapping for cx_Freeze compatibility
+    MODULE_MAP = {
+        'convert_level_location_finder': convert_level_location_finder,
+        'convert_players_location_finder': convert_players_location_finder,
+        'game_pass_save_fix': game_pass_save_fix,
+        'convertids': convertids,
+        'coords': coords,
+        'all_in_one_deletion': all_in_one_deletion,
+        'paldefender_bases': paldefender_bases,
+        'slot_injector': slot_injector,
+        'modify_save': modify_save,
+        'character_transfer': character_transfer,
+        'fix_host_save': fix_host_save,
+        'fix_host_save_manual': fix_host_save_manual,
+        'restore_map': restore_map,
+    }
+    
     def import_and_call(module_name, function_name, *args):
-        module = __import__(module_name)
+        module = MODULE_MAP.get(module_name)
+        if module is None:
+            raise ImportError(f"Module not found: {module_name}")
+        
         func = getattr(module, function_name)
         return func(*args) if args else func()
     
